@@ -30,6 +30,7 @@ function vHarc(){const M=S.m,c=calc(M),it=c.items,tsp=c.spend,pc=a=>tsp?'%'+Math
  const tot=k=>sum(it.filter(i=>i.cat===k).map(i=>i.a)),mx=Math.max(1,...cats.map(k=>tot(k.id))),who=w=>sum(it.filter(i=>i.who===w).map(i=>i.a));
  return `<div class=sec>${mpick()}<h2>Ne nereye gidiyor (${ml(M)})</h2>
  <p class=mut>Alışverişi yaptığın ayda tam tutarla sayılır, taksitli olsa da. Yuvarlak tahmini rakamlar burada olabilir. Hesaptan çıkan net ödemeler Ödemeler sekmesinde.</p>
+ <div style="max-width:320px; margin: 20px auto; display: ${cats.length ? 'block' : 'none'}"><canvas id="harcamaGrafigi"></canvas></div>
  ${cats.length?`<div class=wrap><table><thead><tr><th>Kategori</th>${PL().map(p=>`<th>${esc(p.name)}</th>`).join('')}<th>Toplam</th><th>Pay</th><th style="width:120px"></th></tr></thead><tbody>
  ${cats.map(k=>`<tr><td>${esc(k.name)}</td>${PL().map(p=>{const a=sum(it.filter(i=>i.cat===k.id&&i.who===p.id).map(i=>i.a));return `<td>${a?TL(a):'<span class=mut>-</span>'}</td>`}).join('')}<td><b>${TL(tot(k.id))}</b></td><td class=mut>${pc(tot(k.id))}</td><td><div class=bar style="width:${tot(k.id)/mx*100}%"></div></td></tr>`).join('')}</tbody>
  <tfoot><tr><td>Toplam</td>${PL().map(p=>`<td>${TL(who(p.id))}</td>`).join('')}<td>${TL(tsp)}</td><td>${tsp?'%100':''}</td><td></td></tr><tr class=mut><td>Pay</td>${PL().map(p=>`<td>${pc(who(p.id))}</td>`).join('')}<td></td><td></td><td></td></tr></tfoot></table></div>${notesHtml(noteHarc(M,c))}`:'<p class=mut>Bu ay için kayıt yok. Ekle sekmesinden harcama gir.</p>'}</div>`}
@@ -189,3 +190,42 @@ function vProj(){const s0=nowM(),rows=[],oth=sum(S.assets.map(dTL)),lns=S.debts.
 
 function aAdd(){S.accts.push({id:'h'+Date.now(),name:'Yeni hesap',bal:0,bm:today.slice(0,7)});save();render()}
 function aDel(id){if(S.accts.length<=1){stat('En az bir hesap olmalı');return}S.accts=S.accts.filter(a=>a.id!==id);if(S.defAcct===id)S.defAcct=S.accts[0].id;save();render()}
+
+// --- GRAFİK OTOMATİK ÇİZİM MOTORU ---
+let harcamaGrafigi = null;
+let sonCizilenVeri = null;
+
+setInterval(() => {
+ if (typeof Chart === 'undefined') return;
+ const ctx = document.getElementById('harcamaGrafigi');
+ if (ctx) {
+  const M = S.m, c = calc(M), tsp = c.spend;
+  const guncelVeriHash = M + '-' + tsp; // Ay veya toplam harcama değişirse grafiği yenile
+  
+  if (!harcamaGrafigi || sonCizilenVeri !== guncelVeriHash) {
+   const it = c.items;
+   const cats = CL().filter(k => it.some(i => i.cat === k.id));
+   const labels = cats.map(k => k.name);
+   const data = cats.map(k => sum(it.filter(i => i.cat === k.id).map(i => i.a)));
+   
+   if (harcamaGrafigi) harcamaGrafigi.destroy();
+   harcamaGrafigi = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+     labels: labels,
+     datasets: [{
+      data: data,
+      backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#E7E9ED', '#71B37C'],
+      borderWidth: 1
+     }]
+    },
+    options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+   });
+   sonCizilenVeri = guncelVeriHash;
+  }
+ } else if (harcamaGrafigi) {
+  harcamaGrafigi.destroy();
+  harcamaGrafigi = null;
+  sonCizilenVeri = null;
+ }
+}, 200);
