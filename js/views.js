@@ -189,3 +189,48 @@ function vProj(){const s0=nowM(),rows=[],oth=sum(S.assets.map(dTL)),lns=S.debts.
 
 function aAdd(){S.accts.push({id:'h'+Date.now(),name:'Yeni hesap',bal:0,bm:today.slice(0,7)});save();render()}
 function aDel(id){if(S.accts.length<=1){stat('En az bir hesap olmalı');return}S.accts=S.accts.filter(a=>a.id!==id);if(S.defAcct===id)S.defAcct=S.accts[0].id;save();render()}
+
+let harcamaGrafigi = null;
+
+export function grafigiGuncelle(state) {
+  const ctx = document.getElementById('harcamaGrafigi');
+  if (!ctx || !state || !state.gecmis) return;
+
+  const kategoriToplami = {};
+  state.gecmis.forEach(item => {
+    // Sadece giderleri topla
+    if (item.tutar < 0) {
+      kategoriToplami[item.kategori] = (kategoriToplami[item.kategori] || 0) + Math.abs(item.tutar);
+    }
+  });
+
+  const labels = Object.keys(kategoriToplami);
+  const data = Object.values(kategoriToplami);
+
+  if (harcamaGrafigi) {
+    harcamaGrafigi.destroy();
+  }
+
+  // Veri yoksa grafiği çizme
+  if (data.length === 0) return;
+
+  harcamaGrafigi = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: labels,
+      datasets: [{
+        data: data,
+        backgroundColor: [
+          '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#E7E9ED', '#71B37C'
+        ],
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'bottom' }
+      }
+    }
+  });
+}

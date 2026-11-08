@@ -9,3 +9,11 @@ window.addEventListener('ortakVeriGuncellendi', (e) => {
   // Burada uygulamanın ana "state" (veri) değişkenini 'yeniVeri' ile eşitleyip
   // ekranı yeniden çizdiren (render) fonksiyonunu çağırman gerekiyor.
 });
+// Firebase'den ortak veri güncellendiğinde ekranı yenile
+window.addEventListener('ortakVeriGuncellendi', (e) => {
+  const yeniVeri = e.detail;
+  if (yeniVeri) {
+    App.state = yeniVeri;
+    App.update(); // Ekranı ve grafikleri yeniden çizer
+  }
+});
