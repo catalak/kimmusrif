@@ -3,3 +3,9 @@ function render(){const T=['Ekle','Özet','Harcamalar','Nakit akışı','Projeks
 addEventListener('beforeunload',()=>{if(document.activeElement&&document.activeElement.blur)document.activeElement.blur()});
 async function boot(){render();const d=await Store.load();S=mig(Object.assign(def(),d||{}));render()}
 boot();
+// Firebase'den yeni veri geldiğinde tetiklenir
+window.addEventListener('ortakVeriGuncellendi', (e) => {
+  const yeniVeri = e.detail;
+  // Burada uygulamanın ana "state" (veri) değişkenini 'yeniVeri' ile eşitleyip
+  // ekranı yeniden çizdiren (render) fonksiyonunu çağırman gerekiyor.
+});
