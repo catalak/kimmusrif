@@ -1,38 +1,91 @@
 document.body.style.touchAction = 'manipulation';
-
 let currentUserUID = null;
 let familyCode = localStorage.getItem('kimmusrif_familyCode') || null;
 let authModule = null;
 let authInstance = null;
 let pwaPromptEvent = null;
 
-window.isModalOpen = false;
+// Sabit Arayüzü (Menü, Üst Bar, Modal) Sadece 1 Kez Çizer
+function initShell() {
+    if(document.getElementById('shell-initialized')) return;
+    
+    const shellHTML = `
+        <div id="shell-initialized" style="display:none;"></div>
+        
+        <header style="display:flex;justify-content:space-between;align-items:center;padding:16px 24px; background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid var(--line); position:sticky;top:0;z-index:50;">
+            <div style="display:flex;align-items:center;gap:12px;">
+                <button onclick="toggleMenu(true)" style="background:transparent;border:none;color:var(--ink);font-size:20px;cursor:pointer;padding:4px;margin-left:-4px; touch-action: manipulation;"><i class="fa fa-bars"></i></button>
+                <h1 style="margin:0;font-size:22px;font-weight:800;color:var(--ink);letter-spacing:-0.5px;display:flex;align-items:center;gap:8px;">
+                    <i class="fa fa-wallet" style="color:var(--acc);"></i> Müsrif 
+                    <span id="save-indicator"></span>
+                </h1>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;">
+                <button id="btn-logout-header" style="background:#F1F5F9;border:none;color:var(--mut);width:38px;height:38px;border-radius:19px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition: 0.2s;" title="Çıkış Yap">
+                    <i class="fa fa-sign-out-alt"></i>
+                </button>
+            </div>
+        </header>
 
+        <div id="main-drawer" style="position:fixed;top:0;left:0;bottom:0;width:260px;background:var(--card);z-index:2000;box-shadow:4px 0 20px rgba(0,0,0,0.1);transform:translateX(-100%);transition:transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);display:flex;flex-direction:column; will-change: transform;">
+            <div style="padding:20px 20px 16px 20px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line);">
+                <h2 style="margin:0;font-size:18px;color:var(--ink);">Menü</h2>
+                <button onclick="toggleMenu(false)" style="background:transparent;border:none;font-size:20px;color:var(--mut);cursor:pointer; touch-action: manipulation;"><i class="fa fa-times"></i></button>
+            </div>
+            <div id="drawer-menu-items" style="flex:1; overflow-y:auto; padding: 10px 0;"></div>
+            <div style="padding:16px 20px 24px 20px;border-top:1px solid var(--line);background:#F8FAFC;">
+                <p style="font-size:11px;color:var(--mut);margin:0 0 10px 0;text-transform:uppercase;font-weight:800;letter-spacing:0.5px;">Ortak Kasa <span id="family-status"></span></p>
+                <button onclick="showFamilyCode()" style="background:#FFF;border:1px solid var(--line);padding:12px;border-radius:14px;width:100%;text-align:center;font-weight:700;font-size:13px;color:var(--ink);cursor:pointer;margin-bottom:8px;box-shadow:0 2px 4px rgba(0,0,0,0.02); touch-action: manipulation;"><i class="fa fa-share-alt" style="margin-right:6px;"></i>Kodu Paylaş</button>
+                <button id="btn-family-action" onclick="joinFamily()" style="background:#FFF;border:1px solid var(--line);padding:12px;border-radius:14px;width:100%;text-align:center;font-weight:700;font-size:13px;cursor:pointer;box-shadow:0 2px 4px rgba(0,0,0,0.02); touch-action: manipulation;"></button>
+            </div>
+        </div>
+        <div id="main-overlay" onclick="toggleMenu(false)" style="position:fixed;inset:0;background:rgba(15, 23, 42, 0.4); backdrop-filter: blur(2px); z-index:1900; pointer-events:none; opacity:0; transition:opacity 0.3s; will-change: opacity; -webkit-tap-highlight-color: transparent;"></div>
+
+        <div id="pwa-banner-container"></div>
+
+        <div id="app-content-area" class="main-content" style="padding-bottom:100px; max-width: 800px; margin: 0 auto;"></div>
+
+        <div id="fab-container" class="fab-container" style="display:none;">
+            <button class="fab" onclick="tab=0;render()" style="touch-action: manipulation;"><i class="fa fa-plus"></i></button>
+        </div>
+
+        <nav id="bottom-nav-bar" class="bottom-nav"></nav>
+
+        <div id="add-modal-overlay" class="modal-overlay" onclick="closeModal()"></div>
+        <div id="add-modal-content" class="modal-content">
+            <div class="modal-handle"></div>
+            <button class="modal-close" onclick="closeModal()"><i class="fa fa-times"></i></button>
+            <h2 id="modal-title" style="margin-top:0; margin-bottom: 24px; font-size: 22px; color: var(--ink);">Yeni Kayıt</h2>
+            <div id="add-modal-body"></div>
+        </div>
+    `;
+    document.getElementById('app').innerHTML = shellHTML;
+    document.getElementById('btn-logout-header').onclick = () => { if(authModule && authInstance) authModule.signOut(authInstance); };
+}
+
+// Modal Kontrolleri
+window.isModalOpen = false;
 window.openModal = function() {
     window.isModalOpen = true;
     document.getElementById('add-modal-overlay').classList.add('show');
     document.getElementById('add-modal-content').classList.add('show');
     renderModalContent();
 }
-
 window.closeModal = function() {
     window.isModalOpen = false;
     document.getElementById('add-modal-overlay').classList.remove('show');
     document.getElementById('add-modal-content').classList.remove('show');
-    if(window.EI >= 0 && typeof window.cancelEdit === 'function') {
-        window.cancelEdit();
-    }
+    if(window.EI >= 0 && typeof window.cancelEdit === 'function') { window.cancelEdit(); }
 }
-
 window.renderModalContent = function() {
     const modalBody = document.getElementById('add-modal-body');
-    const modalTitle = document.getElementById('modal-title');
     if(modalBody && window.isModalOpen) {
-        modalTitle.innerText = (window.EI >= 0) ? 'Kaydı Düzenle' : 'Yeni Kayıt';
+        document.getElementById('modal-title').innerText = (window.EI >= 0) ? 'Kaydı Düzenle' : 'Yeni Kayıt';
         modalBody.innerHTML = window.vEkle();
     }
 }
 
+// Add/Edit tetikleyicilerini Modal'a bağla
 const existingAdd = window.add;
 if(existingAdd) {
     window.add = function() {
@@ -40,64 +93,15 @@ if(existingAdd) {
         closeModal();
     };
 }
-
-function initModalDOM() {
-    if(!document.getElementById('add-modal-overlay')) {
-        const modalHTML = `
-            <div id="add-modal-overlay" class="modal-overlay" onclick="closeModal()"></div>
-            <div id="add-modal-content" class="modal-content">
-                <div class="modal-handle"></div>
-                <button class="modal-close" onclick="closeModal()"><i class="fa fa-times"></i></button>
-                <h2 id="modal-title" style="margin-top:0; margin-bottom: 24px; font-size: 22px; color: var(--ink);">Yeni Kayıt</h2>
-                <div id="add-modal-body"></div>
-            </div>
-        `;
-        document.body.insertAdjacentHTML('beforeend', modalHTML);
-    }
+const existingEdit = window.edit;
+if(existingEdit) {
+    window.edit = function(i) {
+        existingEdit(i);
+        openModal();
+    };
 }
 
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  pwaPromptEvent = e;
-  render();
-});
-
-function installPWA() {
-  if (pwaPromptEvent) {
-    pwaPromptEvent.prompt();
-    pwaPromptEvent.userChoice.then((choiceResult) => {
-      if (choiceResult.outcome === 'accepted') {
-        console.log('Kullanıcı PWA yüklemesini kabul etti');
-      }
-      pwaPromptEvent = null;
-      render();
-    });
-  }
-}
-
-function joinFamily() {
-  const code = prompt("Katılmak istediğiniz ailenin kodunu girin (veya ayrılmak için boş bırakın):", familyCode || "");
-  if (code !== null) {
-    if (code.trim() === "") {
-      localStorage.removeItem('kimmusrif_familyCode');
-      familyCode = null;
-      alert("Aileden ayrıldınız. Artık kendi kişisel bütçenizi görüyorsunuz.");
-    } else {
-      localStorage.setItem('kimmusrif_familyCode', code.trim());
-      familyCode = code.trim();
-      alert("Aileye katıldınız! Verileriniz eşitleniyor...");
-    }
-    window.location.reload();
-  }
-}
-
-function showFamilyCode() {
-  const code = familyCode || currentUserUID;
-  if(code) {
-    prompt("Eşinizin veya ailenizin bütçenize ortak olması için bu kodu kopyalayıp ona gönderin:", code);
-  }
-}
-
+// Pürüzsüz Menü Açılışı
 window.toggleMenu = function(state) {
   const drawerEl = document.getElementById('main-drawer');
   const overlayEl = document.getElementById('main-overlay');
@@ -114,41 +118,67 @@ window.toggleMenu = function(state) {
   }
 };
 
-const isIos = () => /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase());
-const isInStandaloneMode = () => ('standalone' in window.navigator) && (window.navigator.standalone);
-
-function render(){
-  initModalDOM();
-
-  // "Ekle" sayfasına (tab=0) geçilmek istendiğinde bunu yakala, ana sayfaya (tab=1) at ve modalı aç.
-  if (tab === 0) {
-      tab = 1;
-      openModal();
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  pwaPromptEvent = e;
+  render();
+});
+function installPWA() {
+  if (pwaPromptEvent) {
+    pwaPromptEvent.prompt();
+    pwaPromptEvent.userChoice.then(() => { pwaPromptEvent = null; render(); });
   }
-
-  let iosBanner = '';
-  if (isIos() && !isInStandaloneMode()) {
-    iosBanner = `<div style="background:var(--card);border:1px solid var(--acc);color:var(--ink);padding:12px 16px;border-radius:12px;margin:16px;box-shadow:0 4px 12px rgba(59,130,246,0.2);display:flex;align-items:center;gap:12px;">
-      <i class="fa fa-arrow-down" style="color:var(--acc);font-size:24px;"></i>
-      <div style="font-size:12px;">Uygulamayı kurmak için alttaki <b>Paylaş</b> ikonuna basıp <b>'Ana Ekrana Ekle'</b>yi seçin.</div>
-    </div>`;
+}
+function joinFamily() {
+  const code = prompt("Katılmak istediğiniz ailenin kodunu girin (veya ayrılmak için boş bırakın):", familyCode || "");
+  if (code !== null) {
+    if (code.trim() === "") { localStorage.removeItem('kimmusrif_familyCode'); familyCode = null; alert("Aileden ayrıldınız."); } 
+    else { localStorage.setItem('kimmusrif_familyCode', code.trim()); familyCode = code.trim(); alert("Aileye katıldınız!"); }
+    window.location.reload();
   }
+}
+function showFamilyCode() {
+  const code = familyCode || currentUserUID;
+  if(code) prompt("Eşinizin veya ailenizin bütçenize ortak olması için bu kodu kopyalayıp ona gönderin:", code);
+}
 
-  const B = [
-    {t:'Görünüm', i:'fa-chart-pie', v:1},
-    {t:'Ayarlar', i:'fa-cog', v:8}
-  ];
-  
-  const sideMenu = [
-    {t:'Harcamalar', i:'fa-receipt', v:2},
-    {t:'Nakit', i:'fa-water', v:3},
-    {t:'Projeksiyon', i:'fa-chart-line', v:4},
-    {t:'Gelirler', i:'fa-wallet', v:5},
-    {t:'Kartlar', i:'fa-credit-card', v:6},
-    {t:'Sabitler', i:'fa-calendar-check', v:7}
-  ];
-  
-  const pwaBanner = pwaPromptEvent ? `
+// Sadece aktif sekmeyi ve buton renklerini değiştiren fonksiyon
+function renderShellState() {
+    const sideMenu = [
+        {t:'Harcamalar', i:'fa-receipt', v:2},
+        {t:'Nakit', i:'fa-water', v:3},
+        {t:'Projeksiyon', i:'fa-chart-line', v:4},
+        {t:'Gelirler', i:'fa-wallet', v:5},
+        {t:'Kartlar', i:'fa-credit-card', v:6},
+        {t:'Sabitler', i:'fa-calendar-check', v:7}
+    ];
+    document.getElementById('drawer-menu-items').innerHTML = sideMenu.map(item=>
+        `<button onclick="tab=${item.v}; toggleMenu(false); render();" style="background:${tab===item.v?'rgba(59, 130, 246, 0.12)':'transparent'};border:none;padding:12px 24px;width:100%;text-align:left;display:flex;align-items:center;gap:14px;font-size:15px;font-weight:700;color:${tab===item.v?'var(--acc)':'var(--mut)'};cursor:pointer; touch-action: manipulation;"><i class="fa ${item.i}" style="width:20px;text-align:center;"></i>${item.t}</button>`
+    ).join('');
+
+    const B = [{t:'Görünüm', i:'fa-chart-pie', v:1}, {t:'Ayarlar', i:'fa-cog', v:8}];
+    document.getElementById('bottom-nav-bar').innerHTML = B.map(item=>
+        `<button class="nav-item ${tab===item.v?'on':''}" onclick="tab=${item.v};render()" style="touch-action: manipulation;">
+          <i class="fa ${item.i}"></i>
+          <span>${item.t}</span>
+        </button>`
+    ).join('');
+
+    document.getElementById('fab-container').style.display = (tab !== 0 && tab !== undefined) ? 'block' : 'none';
+
+    document.getElementById('family-status').innerText = familyCode ? '(Aktif)' : '(Kapalı)';
+    const btnFam = document.getElementById('btn-family-action');
+    if (familyCode) {
+        btnFam.innerHTML = '<i class="fa fa-user-times" style="margin-right:6px;"></i>Ortaklıktan Çık';
+        btnFam.style.color = 'var(--neg)';
+    } else {
+        btnFam.innerHTML = '<i class="fa fa-users" style="margin-right:6px;"></i>Bir Koda Katıl';
+        btnFam.style.color = 'var(--acc)';
+    }
+
+    document.getElementById('save-indicator').innerHTML = ST === 'Kaydedildi' ? '<i class="fa fa-check-circle" style="color:var(--pos);font-size:18px;animation: popIn 0.3s ease-out;"></i>' : '';
+    
+    document.getElementById('pwa-banner-container').innerHTML = pwaPromptEvent ? `
     <div style="background:var(--acc);color:white;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;border-radius:12px;margin:16px;box-shadow:0 4px 12px rgba(59,130,246,0.3);">
       <div style="display:flex;align-items:center;gap:12px;">
         <i class="fa fa-download" style="font-size:20px;"></i>
@@ -157,149 +187,42 @@ function render(){
           <span style="font-size:11px;opacity:0.9;">Daha hızlı erişim için ana ekrana ekle</span>
         </div>
       </div>
-      <button onclick="installPWA()" style="background:white;color:var(--acc);border:none;padding:8px 16px;border-radius:16px;font-weight:700;font-size:13px;cursor:pointer;">Yükle</button>
-    </div>
-  ` : '';
-
-  const topBar = `
-<header style="display:flex;justify-content:space-between;align-items:center;padding:16px 24px; background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid var(--line); position:sticky;top:0;z-index:50;">
-<div style="display:flex;align-items:center;gap:12px;">
-  <button onclick="toggleMenu(true)" style="background:transparent;border:none;color:var(--ink);font-size:20px;cursor:pointer;padding:4px;margin-left:-4px; touch-action: manipulation;"><i class="fa fa-bars"></i></button>
-  <h1 style="margin:0;font-size:22px;font-weight:800;color:var(--ink);letter-spacing:-0.5px;display:flex;align-items:center;gap:8px;"><i class="fa fa-wallet" style="color:var(--acc);"></i> Müsrif 
-    ${ST === 'Kaydedildi' ? '<i class="fa fa-check-circle" style="color:var(--pos);font-size:18px;animation: popIn 0.3s ease-out;"></i>' : ''}
-  </h1>
-</div>
-<div style="display:flex;align-items:center;gap:12px;">
-  <button id="btn-logout-header" style="background:#F1F5F9;border:none;color:var(--mut);width:38px;height:38px;border-radius:19px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition: 0.2s;" title="Çıkış Yap">
-    <i class="fa fa-sign-out-alt"></i>
-  </button>
-</div>
-</header>`;
-  
-  const drawer = `<div id="main-drawer" style="position:fixed;top:0;left:0;bottom:0;width:260px;background:var(--card);z-index:2000;box-shadow:4px 0 20px rgba(0,0,0,0.1);transform:translateX(-100%);transition:transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);display:flex;flex-direction:column; will-change: transform;">
-<div style="padding:20px 20px 16px 20px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line);">
-  <h2 style="margin:0;font-size:18px;color:var(--ink);">Menü</h2>
-  <button onclick="toggleMenu(false)" style="background:transparent;border:none;font-size:20px;color:var(--mut);cursor:pointer; touch-action: manipulation;"><i class="fa fa-times"></i></button>
-</div>
-<div style="flex:1; overflow-y:auto; padding: 10px 0;">
-  ${sideMenu.map(item=>`<button onclick="tab=${item.v}; toggleMenu(false); setTimeout(render, 300);" style="background:${tab===item.v?'rgba(59, 130, 246, 0.12)':'transparent'};border:none;padding:12px 24px;width:100%;text-align:left;display:flex;align-items:center;gap:14px;font-size:15px;font-weight:700;color:${tab===item.v?'var(--acc)':'var(--mut)'};cursor:pointer; touch-action: manipulation;"><i class="fa ${item.i}" style="width:20px;text-align:center;"></i>${item.t}</button>`).join('')}
-</div>
-<div style="padding:16px 20px 24px 20px;border-top:1px solid var(--line);background:#F8FAFC;">
-  <p style="font-size:11px;color:var(--mut);margin:0 0 10px 0;text-transform:uppercase;font-weight:800;letter-spacing:0.5px;">Ortak Kasa ${familyCode?'(Aktif)':'(Kapalı)'}</p>
-  <button onclick="showFamilyCode()" style="background:#FFF;border:1px solid var(--line);padding:12px;border-radius:14px;width:100%;text-align:center;font-weight:700;font-size:13px;color:var(--ink);cursor:pointer;margin-bottom:8px;box-shadow:0 2px 4px rgba(0,0,0,0.02); touch-action: manipulation;"><i class="fa fa-share-alt" style="margin-right:6px;"></i>Kodu Paylaş</button>
-  <button onclick="joinFamily()" style="background:#FFF;border:1px solid var(--line);padding:12px;border-radius:14px;width:100%;text-align:center;font-weight:700;font-size:13px;color:${familyCode?'var(--neg)':'var(--acc)'};cursor:pointer;box-shadow:0 2px 4px rgba(0,0,0,0.02); touch-action: manipulation;">${familyCode?'<i class="fa fa-user-times" style="margin-right:6px;"></i>Ortaklıktan Çık':'<i class="fa fa-users" style="margin-right:6px;"></i>Bir Koda Katıl'}</button>
-</div>
-</div>
-<div id="main-overlay" onclick="toggleMenu(false)" style="position:fixed;inset:0;background:rgba(15, 23, 42, 0.4); backdrop-filter: blur(2px); z-index:1900; pointer-events:none; opacity:0; transition:opacity 0.3s; will-change: opacity; -webkit-tap-highlight-color: transparent;"></div>
-`;
-  
-  const bottomNav = `<nav class="bottom-nav" style="justify-content:space-around;padding:10px 10px 24px 10px; background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-top: 1px solid var(--line);">
-    ${B.map((item,i)=>`<button class="nav-item ${tab===item.v?'on':''}" onclick="tab=${item.v};render()" style="touch-action: manipulation;">
-      <i class="fa ${item.i}"></i>
-      <span>${item.t}</span>
-    </button>`).join('')}
-  </nav>`;
-  
-  const fab = (tab !== 0 && tab !== undefined) ? `<div class="fab-container"><button class="fab" onclick="tab=0;render()" style="touch-action: manipulation;"><i class="fa fa-plus"></i></button></div>` : '';
-  const viewsArr = [vEkle, vOzet, vHarc, vOde, vProj]; 
-  const viewFn = (tab >= 0 && tab <= 8 && typeof [vEkle,vOzet,vHarc,vOde,vProj,window.vGelir,vKart,vSabit,vAyar][tab] === 'function') ? [vEkle,vOzet,vHarc,vOde,vProj,window.vGelir,vKart,vSabit,vAyar][tab]() : '';
-  
-  const content = fab + `<div class="main-content"  style="padding-bottom:100px; max-width: 800px; margin: 0 auto;">` + pwaBanner + iosBanner + viewFn + `</div>`;
-  
-  $('#app').innerHTML = topBar + drawer + content + bottomNav;
-  
-  const loBtn = document.getElementById('btn-logout-header');
-  if(loBtn) loBtn.onclick = () => { if(authModule && authInstance) authModule.signOut(authInstance); };
+      <button onclick="installPWA()" style="background:white;color:var(--acc);border:none;padding:8px 16px;border-radius:16px;font-weight:700;font-size:13px;cursor:pointer; touch-action: manipulation;">Yükle</button>
+    </div>` : '';
 }
 
-// Chart Otomasyonu (Açık Tema Renkleri)
-setInterval(() => {
- if (typeof Chart === 'undefined') return;
- const M = S.m, c = calc(M), tsp = c.spend;
- 
- const ctxHarc = document.getElementById('harcamaGrafigi');
- if (ctxHarc) {
-  const guncelVeriHash = M + '-' + tsp;
-  if (!window.harcamaGrafigi || window.sonCizilenVeriHarc !== guncelVeriHash) {
-   const it = c.items;
-   const cats = CL().filter(k => it.some(i => i.cat === k.id));
-   const labels = cats.map(k => k.name);
-   const data = cats.map(k => sum(it.filter(i => i.cat === k.id).map(i => i.a)));
-   
-   if (window.harcamaGrafigi) window.harcamaGrafigi.destroy();
-   window.harcamaGrafigi = new Chart(ctxHarc, {
-    type: 'doughnut',
-    data: {
-     labels: labels,
-     datasets: [{
-      data: data,
-      backgroundColor: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#F97316', '#64748B', '#14B8A6'],
-      borderWidth: 1
-     }]
-    },
-    options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
-   });
-   window.sonCizilenVeriHarc = guncelVeriHash;
-  }
- } else if (window.harcamaGrafigi) {
-  window.harcamaGrafigi.destroy(); window.harcamaGrafigi = null; window.sonCizilenVeriHarc = null;
- }
+// Ana Render (Artık sadece #app-content-area divinin içini yeniler, menü bozulmaz)
+function render(){
+    initShell();
 
- const ctxKisi = document.getElementById('kisiGrafigi');
- if (ctxKisi) {
-  const guncelVeriHashK = M + '-' + tsp;
-  if (!window.kisiGrafigi || window.sonCizilenVeriKisi !== guncelVeriHashK) {
-   const it = c.items;
-   const whoTotals = {};
-   it.forEach(i => { whoTotals[i.who] = (whoTotals[i.who] || 0) + i.a; });
-   const sortedWho = Object.entries(whoTotals).sort((a,b) => b[1] - a[1]);
-   const labels = sortedWho.map(w => {
-       const p = PL().find(x => x.id === w[0]);
-       return p ? p.name : w[0];
-   });
-   const data = sortedWho.map(w => w[1]);
-   
-   if (window.kisiGrafigi) window.kisiGrafigi.destroy();
-   window.kisiGrafigi = new Chart(ctxKisi, {
-    type: 'bar',
-    data: {
-     labels: labels,
-     datasets: [{
-      label: 'Harcama Tutarı (₺)',
-      data: data,
-      backgroundColor: '#3B82F6',
-      borderWidth: 1,
-      borderRadius: 4
-     }]
-    },
-    options: {
-     indexAxis: 'y',
-     responsive: true,
-     maintainAspectRatio: false,
-     plugins: { legend: { display: false } }
+    if (tab === 0) {
+        tab = window.previousTab || 1; 
+        openModal();
+    } else {
+        window.previousTab = tab;
     }
-   });
-   window.sonCizilenVeriKisi = guncelVeriHashK;
-  }
- } else if (window.kisiGrafigi) {
-  window.kisiGrafigi.destroy(); window.kisiGrafigi = null; window.sonCizilenVeriKisi = null;
- }
-}, 200);
+
+    renderShellState();
+
+    const viewsArr = [window.vEkle, window.vOzet, window.vHarc, window.vOde, window.vProj, window.vGelir, window.vKart, window.vSabit, window.vAyar];
+    const viewFn = (tab >= 0 && tab <= 8 && typeof viewsArr[tab] === 'function') ? viewsArr[tab]() : '';
+    
+    document.getElementById('app-content-area').innerHTML = viewFn;
+}
+
+window.addEventListener('ortakVeriGuncellendi', (e) => {
+  if (e.detail) { Object.assign(S, e.detail); render(); }
+});
 
 async function initAuth() {
   const fbApp = await import("https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js");
   authModule = await import("https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js");
   
-  const firebaseConfig = {
+  const app = fbApp.initializeApp({
     apiKey: "AIzaSyDxiXUHNZzsA5wa_VjJMaWuB4RyrgeibU8",
     authDomain: "kimmusrif.firebaseapp.com",
-    projectId: "kimmusrif",
-    storageBucket: "kimmusrif.firebasestorage.app",
-    messagingSenderId: "844853880507",
-    appId: "1:844853880507:web:fed0371d4facee67ec6b9e"
-  };
-  
-  const app = fbApp.initializeApp(firebaseConfig);
+    projectId: "kimmusrif"
+  });
   authInstance = authModule.getAuth(app);
   const provider = new authModule.GoogleAuthProvider();
 
@@ -307,7 +230,6 @@ async function initAuth() {
   if(loginBtn) {
     loginBtn.addEventListener('click', () => {
       authModule.signInWithPopup(authInstance, provider).catch(err => {
-        console.error("Giriş hatası:", err);
         const errDiv = document.getElementById('login-error');
         if(errDiv) errDiv.style.display = 'block';
       });
@@ -322,7 +244,6 @@ async function initAuth() {
       
       const d = await Store.load(currentUserUID, familyCode);
       S = mig(Object.assign(def(), d || {}));
-      
       tab = 1;
       
       if(Store.active !== 'firebase') {
@@ -343,7 +264,7 @@ window.save = function() {
    Store.save(S, currentUserUID, familyCode);
    ST = 'Kaydedildi';
    render();
-   setTimeout(() => { if(ST === 'Kaydedildi') { ST = ''; render(); } }, 2000);
+   setTimeout(() => { if(ST === 'Kaydedildi') { ST = ''; renderShellState(); } }, 2000);
 };
 
 initAuth();

@@ -20,7 +20,6 @@ function noteHarc(M,c){const n=[],tsp=c.spend;if(!tsp)return n;
  return n}
 const notesHtml=a=>a.length?`<div class=notes>${a.map(t=>`<p>${esc(t)}</p>`).join('')}</div>`:'';
 
-// YENİ vOzet (Geçmiş işlemler tablosu Accordion olarak buraya taşındı)
 function vOzet(){const M=S.m,c=calc(M),net=c.inc-c.cash,yy=sum(S.yearly.map(y=>yA(y,Math.floor(M/12))))/12;
  const list=S.tx.map((t,i)=>({t,i})).filter(x=>mkd(x.t.date)===M||mkd(x.t.date)===M-1).sort((a,b)=>b.t.date.localeCompare(a.t.date));
  return `<div class=sec>${mpick()}
@@ -34,7 +33,7 @@ function vOzet(){const M=S.m,c=calc(M),net=c.inc-c.cash,yy=sum(S.yearly.map(y=>y
  <div><span>Kalan</span><b class="${net<0?'neg':'pos'}">${TL(net)}</b></div></div>
  <div class=stats style="margin-top:16px"><div><span>Harcama (yapılan alışveriş)</span><b>${TL(c.spend)}</b></div><div><span>Harcamanın gelire oranı</span><b>${c.inc?'%'+Math.round(c.spend/c.inc*100):'-'}</b></div></div>
  ${notesHtml(noteOzet(M,c))}
- <p class=mut><b>Ödemeler</b> kira, aidat, kredi, kart ekstresi gibi hesaptan çıkan paralardır (Ödemeler sekmesi). <b>Harcama</b> alışverişi yaptığın ayda, taksitli de olsa tam tutardır (Harcamalar sekmesi). İkisi aynı para değil, bu yüzden ayrı gösteriliyor.${yy?` Yıllık giderler için her ay ayırman gereken: ${TL(yy)}.`:''}</p>
+ <p class=mut><b>Ödemeler</b> kira, aidat, kredi, kart ekstresi gibi hesaptan çıkan paralardır. <b>Harcama</b> alışverişi yaptığın ayda, taksitli de olsa tam tutardır. İkisi aynı para değil, bu yüzden ayrı gösteriliyor.${yy?` Yıllık giderler için her ay ayırman gereken: ${TL(yy)}.`:''}</p>
  
  <details class="history-accordion" style="margin-top:24px; background:#F8FAFC; border:1px solid var(--line); border-radius:16px; overflow:hidden;">
     <summary style="padding:16px 20px; font-weight:800; color:var(--ink); cursor:pointer; font-size:14px; outline:none; list-style:none; display:flex; justify-content:space-between; align-items:center; user-select:none;">
@@ -88,7 +87,6 @@ function vOde(){const M=S.m,c=calc(M),rows=cashRows(M);
  <tfoot><tr><td></td><td style="text-align:left">Gelir</td><td></td><td>${TL(gel)}</td><td></td></tr><tr><td></td><td style="text-align:left">Kesin ödemeler</td><td></td><td>${TL(kes)}</td><td></td></tr><tr><td></td><td style="text-align:left">Net</td><td></td><td class="${net<0?'neg':'pos'}">${TL(net)}</td><td></td></tr></tfoot></table></div>
  <p class=mut>${tah>0.5?`Kart tahminleri toplama dahil değil: ~${TL(tah)}. Tahminle birlikte net: ${TL(net-tah)}.`:'Tüm rakamlar kesinleşmiş.'}</p>`:'<p class=mut>Bu ay için kayıt yok.</p>'}</div>`}
 
-// YENİ vEkle (Sadece Form İçerir - Geçmiş İşlemler Yukarı Taşındı - OnChange eventleri renderModalContent çağırır)
 function vEkle(){const inc=F.type==='in';
  return `<div class=grid>
  <div><label>Tarih</label><input id=dt type=date value="${F.date}"></div>
@@ -211,5 +209,78 @@ function vProj(){const s0=nowM(),rows=[],oth=sum(S.assets.map(dTL)),lns=S.debts.
  <p class=mut style="margin-top:10px">Net = gelir − kesin ödemeler. Nakit = hesap bakiyeleri + her ayın neti. Borç: kalan kredi taksitleri, borç listesi ve ödenmemiş ekstreler (faiz hariç). Net varlık = nakit + diğer varlıklar − borç. Tahmini kart sütunu hesaplara dahil değildir. Hesaplar ve varlıklar Ayarlar sekmesinde.</p></div>
  <div class=sec><div class=grid style="grid-template-columns:repeat(auto-fit,minmax(320px,1fr));align-items:start;gap:24px">${t2('Varlıklarım',vi)}${t2('Borçlarım',bi)}</div><p class=mut style="margin-top:10px">Borçların şu anki dağılımı: kısa vadeli (12 ay içinde ödenecek) ${TL(tt(bi,1)-uz0)}, uzun vadeli ${TL(uz0)}. Hesapları, altın ve dövizi Ayarlar sekmesinden düzenlersin.</p></div>`}
 
-function aAdd(){S.accts.push({id:'h'+Date.now(),name:'Yeni hesap',bal:0,bm:today.slice(0,7)});save();render()}
-function aDel(id){if(S.accts.length<=1){stat('En az bir hesap olmalı');return}S.accts=S.accts.filter(a=>a.id!==id);if(S.defAcct===id)S.defAcct=S.accts[0].id;save();render()}
+function vGelir(){const list=S.isrc;return `<div class=sec><h2>Maaş ve düzenli gelirler</h2><p class=mut>Düzenli yatan paraları buradan ekle. Ödemeler sekmesindeki nakit akışını görmek için gereklidir. İkramiye veya tek seferlik bir gelirse Ekle sekmesinden girebilirsin.</p>${list.map((f,i)=>`<div class=row><input style="flex:2;min-width:140px" value="${esc(f.name)}" placeholder="Ad" onchange="U('isrc',${i},'name',this.value)"><input type=number step=any style="flex:1;min-width:100px" placeholder="Tutar" value="${f.amt}" onchange="U('isrc',${i},'amt',this.value)"><input type=number min=1 max=31 title="Ödeme günü" placeholder="Gün" style="width:70px" value="${f.day||''}" onchange="U('isrc',${i},'day',this.value)">${acSel('isrc',i,f.acct)}<button class=b onclick="del('isrc',${i})">Sil</button></div>`).join('')}<button class=b onclick="S.isrc.push({name:'',amt:0,day:1});save();render()">Gelir ekle</button></div>`}
+
+// --- GRAFİK OTOMATİK ÇİZİM MOTORU ---
+setInterval(() => {
+ if (typeof Chart === 'undefined') return;
+ const M = S.m, c = calc(M), tsp = c.spend;
+ 
+ const ctxHarc = document.getElementById('harcamaGrafigi');
+ if (ctxHarc) {
+  const guncelVeriHash = M + '-' + tsp;
+  if (!window.harcamaGrafigi || window.sonCizilenVeriHarc !== guncelVeriHash) {
+   const it = c.items;
+   const cats = CL().filter(k => it.some(i => i.cat === k.id));
+   const labels = cats.map(k => k.name);
+   const data = cats.map(k => sum(it.filter(i => i.cat === k.id).map(i => i.a)));
+   
+   if (window.harcamaGrafigi) window.harcamaGrafigi.destroy();
+   window.harcamaGrafigi = new Chart(ctxHarc, {
+    type: 'doughnut',
+    data: {
+     labels: labels,
+     datasets: [{
+      data: data,
+      backgroundColor: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#F97316', '#64748B', '#14B8A6'],
+      borderWidth: 1
+     }]
+    },
+    options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+   });
+   window.sonCizilenVeriHarc = guncelVeriHash;
+  }
+ } else if (window.harcamaGrafigi) {
+  window.harcamaGrafigi.destroy(); window.harcamaGrafigi = null; window.sonCizilenVeriHarc = null;
+ }
+
+ const ctxKisi = document.getElementById('kisiGrafigi');
+ if (ctxKisi) {
+  const guncelVeriHashK = M + '-' + tsp;
+  if (!window.kisiGrafigi || window.sonCizilenVeriKisi !== guncelVeriHashK) {
+   const it = c.items;
+   const whoTotals = {};
+   it.forEach(i => { whoTotals[i.who] = (whoTotals[i.who] || 0) + i.a; });
+   const sortedWho = Object.entries(whoTotals).sort((a,b) => b[1] - a[1]);
+   const labels = sortedWho.map(w => {
+       const p = PL().find(x => x.id === w[0]);
+       return p ? p.name : w[0];
+   });
+   const data = sortedWho.map(w => w[1]);
+   
+   if (window.kisiGrafigi) window.kisiGrafigi.destroy();
+   window.kisiGrafigi = new Chart(ctxKisi, {
+    type: 'bar',
+    data: {
+     labels: labels,
+     datasets: [{
+      label: 'Harcama Tutarı (₺)',
+      data: data,
+      backgroundColor: '#3B82F6',
+      borderWidth: 1,
+      borderRadius: 4
+     }]
+    },
+    options: {
+     indexAxis: 'y',
+     responsive: true,
+     maintainAspectRatio: false,
+     plugins: { legend: { display: false } }
+    }
+   });
+   window.sonCizilenVeriKisi = guncelVeriHashK;
+  }
+ } else if (window.kisiGrafigi) {
+  window.kisiGrafigi.destroy(); window.kisiGrafigi = null; window.sonCizilenVeriKisi = null;
+ }
+}, 200);
