@@ -1,13 +1,13 @@
-const CACHE_NAME = 'kimmusrif-v2';
+const CACHE_NAME = 'kimmusrif-v11';
 const urlsToCache = ['./', './index.html', './css/style.css', './js/app.js', './js/core.js', './js/views.js', './js/storage.js'];
 
 self.addEventListener('install', event => {
-  self.skipWaiting(); // Yeni versiyonu hemen devreye al
+  self.skipWaiting();
   event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache)));
 });
 
 self.addEventListener('activate', event => {
-  // Eski önbellek kalıntılarını otomatik temizle
+  event.waitUntil(clients.claim());
   event.waitUntil(
     caches.keys().then(keys => Promise.all(
       keys.map(key => {
@@ -18,7 +18,6 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
-  // Önce internetten en güncelini almayı dene, internet yoksa önbellekten (telefondan) yükle
   event.respondWith(
     fetch(event.request).catch(() => caches.match(event.request))
   );
