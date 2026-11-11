@@ -8,31 +8,23 @@
   <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-</head>
-<body>
-  <div id="login-screen" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background: var(--bg); text-align: center; padding: 20px; box-sizing: border-box;">
-    <h1 style="color: var(--ink); margin-bottom: 10px;">Kim Müsrif?</h1>
-    <p style="color: var(--mut); margin-bottom: 30px; max-width: 400px;">Aile bütçeni yönetmek için giriş yap. Verilerin sadece sana özel ve güvenli bir şekilde saklanır.</p>
-    <button id="btn-google-login" style="background: white; color: #444; border: 1px solid #ccc; padding: 12px 24px; border-radius: 24px; font-size: 16px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); transition: all 0.2s;">
-      <i class="fab fa-google" style="color: #DB4437; font-size: 18px;"></i> Google ile Giriş Yap
-    </button>
-    <div id="login-error" style="color: #E74C3C; margin-top: 15px; font-size: 14px; display: none;">Giriş yapılamadı, lütfen tekrar dene.</div>
-  </div>
-  
-  <div id="app-container" style="display: none;">
-    <main id="app"></main>
-  </div>
-
-  <script src="js/storage.js"></script>
-  <script src="js/core.js"></script>
-  <script src="js/views.js"></script>
-  <script src="js/app.js"></script>
-
-  <script>
+<script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js').catch(err => console.log('SW Hata:', err));
+        navigator.serviceWorker.register('sw.js').then(registration => {
+          // Yeni bir güncelleme (yeni sw.js) algılandığında
+          registration.addEventListener('updatefound', () => {
+            const newWorker = registration.installing;
+            newWorker.addEventListener('statechange', () => {
+              // Yeni sürüm arka planda cihaza indiğinde ve hazır olduğunda
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                console.log('Yeni versiyon bulundu, sayfa güncelleniyor...');
+                // Sayfayı otomatik olarak en güncel haliyle yenile
+                window.location.reload(true);
+              }
+            });
+          });
+        }).catch(err => console.log('SW Hata:', err));
       });
     }
   </script>
