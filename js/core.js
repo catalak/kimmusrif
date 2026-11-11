@@ -19,6 +19,13 @@ const NUM=new Set(['amt','cut','due','stmt','balance','month','ben','es','pay','
 const pd=s=>({y:+s.slice(0,4),m:+s.slice(5,7)-1,d:+s.slice(8,10)});
 const mk=(y,m)=>y*12+m;
 const mkd=s=>{const p=pd(s);return mk(p.y,p.m)};
+const inPer = (dt, M) => {
+  const day = S.payDay || 1;
+  if (day === 1) return mkd(dt) === M;
+  const p = pd(dt);
+  return (p.d >= day ? mk(p.y, p.m) : mk(p.y, p.m) - 1) === M;
+};
+
 const ml=k=>MN[k%12]+' '+Math.floor(k/12);
 const today=new Date().toISOString().slice(0,10);
 const DI=()=>[{id:'ben',name:'Ben maaş',ff:1},{id:'bene',name:'İkramiye',ff:0},{id:'es',name:'Eşim maaş',ff:1},{id:'ek',name:'Ek gelir',ff:0},{id:'kira',name:'Kira geliri',ff:1},{id:'dig',name:'Diğer gelir',ff:0}];
@@ -78,9 +85,9 @@ function vGelir(){const s=nowM()+(S.io||0),rows=[],src=S.isrc||[];
  <button class=b onclick="S.isrc.push({id:'g'+Date.now(),name:'Yeni gelir',ff:0});save();render()">Gelir kalemi ekle</button></div>`}
 function calc(M){
  const ex=S.tx.filter(t=>t.type!=='in'),yr=S.yearly.filter(y=>y.month-1===M%12).map(y=>({...y,amt:yA(y,Math.floor(M/12))})),fx=S.fixed.filter(f=>on(f,M)),ln=S.debts.filter(d=>d.kind==='kredi'&&loanOn(d,M));
- const inc=incM(M)+sum(S.tx.filter(t=>t.type==='in'&&mkd(t.date)===M).map(t=>t.amt));
- const items=[...ex.filter(t=>mkd(t.date)===M),...fx,...yr,...ln.map(d=>({cat:'borc',who:'aile',amt:d.pay}))].map(t=>({cat:t.cat,who:t.who,a:t.amt}));
- const cash=sum(ex.filter(t=>t.pay==='cash'&&mkd(t.date)===M).map(t=>t.amt))+sum(fx.map(f=>f.amt))+sum(ln.map(d=>d.pay))+sum(yr.filter(f=>!f.pm||f.pm==='cash').map(f=>f.amt))+sum(S.cards.map(c=>cardSure(c,M)));
+ const inc=incM(M)+sum(S.tx.filter(t=>t.type==='in'&&inPer(t.date, M)).map(t=>t.amt));
+ const items=[...ex.filter(t=>inPer(t.date, M)),...fx,...yr,...ln.map(d=>({cat:'borc',who:'aile',amt:d.pay}))].map(t=>({cat:t.cat,who:t.who,a:t.amt}));
+ const cash=sum(ex.filter(t=>t.pay==='cash'&&inPer(t.date, M)).map(t=>t.amt))+sum(fx.map(f=>f.amt))+sum(ln.map(d=>d.pay))+sum(yr.filter(f=>!f.pm||f.pm==='cash').map(f=>f.amt))+sum(S.cards.map(c=>cardSure(c,M)));
  const est=sum(S.cards.map(c=>cardTah(c,M)));
  return{inc,items,spend:sum(items.map(i=>i.a)),cash,est,fixed:sum(fx.map(f=>f.amt))+sum(ln.map(d=>d.pay))}}
 

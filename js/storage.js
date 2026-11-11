@@ -18,14 +18,14 @@ const Store = (() => {
   const adapters = {
     local: {
       name: 'Bu cihaz', ready: true,
-      async load() { try { return JSON.parse(localStorage.getItem(KEY) || localStorage.getItem(LEGACY) || 'null') } catch (e) { return null } },
-      async save(state) { localStorage.setItem(KEY, JSON.stringify(state)) }
+      async load(uid, familyCode=null) { try { return JSON.parse(localStorage.getItem(KEY) || localStorage.getItem(LEGACY) || 'null') } catch (e) { return null } },
+      async save(state, uid, familyCode=null) { localStorage.setItem(KEY, JSON.stringify(state)) }
     },
     drive: { name: 'Google Drive (İptal)', ready: false, note: 'Yerine Firebase eklendi' },
     firebase: {
       name: 'Firebase (Ortak)', ready: true,
       db: null, docRef: null,
-      async init() {
+      async init(uid, familyCode=null) {
         if (this.db) return;
         
         // Dinamik import: index.html'i bozmadan veya npm kurmadan modülleri doğrudan çeker
@@ -36,7 +36,7 @@ const Store = (() => {
         this.db = getFirestore(app);
         
         // Veritabanında "butce" koleksiyonu altında "ortak_veri" dökümanını kullanacağız
-        this.docRef = doc(this.db, "butce", "ortak_veri");
+        this.docRef = doc(this.db, "butce", familyCode || uid || "ortak_veri");
 
         // Gerçek zamanlı (real-time) eşitleme
         onSnapshot(this.docRef, (docSnap) => {
@@ -49,8 +49,8 @@ const Store = (() => {
           }
         });
       },
-      async load() {
-        await this.init();
+      async load(uid, familyCode=null) {
+        await this.init(uid, familyCode);
         const { getDoc } = await import("https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js");
         try {
           const snap = await getDoc(this.docRef);
@@ -60,8 +60,8 @@ const Store = (() => {
           return null;
         }
       },
-      async save(state) {
-        await this.init();
+      async save(state, uid, familyCode=null) {
+        await this.init(uid, familyCode);
         const { setDoc } = await import("https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js");
         try {
           await setDoc(this.docRef, { state: state });
@@ -79,8 +79,8 @@ const Store = (() => {
     adapters,
     get active() { return active },
     label() { return adapters[active].name },
-    load() { return Promise.resolve(adapters[active].load()) },
-    save(state) { return Promise.resolve(adapters[active].save(state)) },
+    load(uid, fc) { return Promise.resolve(adapters[active].load(uid, fc)) },
+    save(state, uid, fc) { return Promise.resolve(adapters[active].save(state, uid, fc)) },
     async switchTo(name) {
       const to = adapters[name];
       if (!to || !to.ready) throw new Error('Depo hazır değil');
