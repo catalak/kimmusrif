@@ -1,14 +1,64 @@
+document.body.style.touchAction = 'manipulation';
+
 let currentUserUID = null;
 let familyCode = localStorage.getItem('kimmusrif_familyCode') || null;
 let authModule = null;
 let authInstance = null;
 let pwaPromptEvent = null;
 
-// PWA Yükleme Olayını Dinle
+window.isModalOpen = false;
+
+window.openModal = function() {
+    window.isModalOpen = true;
+    document.getElementById('add-modal-overlay').classList.add('show');
+    document.getElementById('add-modal-content').classList.add('show');
+    renderModalContent();
+}
+
+window.closeModal = function() {
+    window.isModalOpen = false;
+    document.getElementById('add-modal-overlay').classList.remove('show');
+    document.getElementById('add-modal-content').classList.remove('show');
+    if(window.EI >= 0 && typeof window.cancelEdit === 'function') {
+        window.cancelEdit();
+    }
+}
+
+window.renderModalContent = function() {
+    const modalBody = document.getElementById('add-modal-body');
+    const modalTitle = document.getElementById('modal-title');
+    if(modalBody && window.isModalOpen) {
+        modalTitle.innerText = (window.EI >= 0) ? 'Kaydı Düzenle' : 'Yeni Kayıt';
+        modalBody.innerHTML = window.vEkle();
+    }
+}
+
+const existingAdd = window.add;
+if(existingAdd) {
+    window.add = function() {
+        existingAdd();
+        closeModal();
+    };
+}
+
+function initModalDOM() {
+    if(!document.getElementById('add-modal-overlay')) {
+        const modalHTML = `
+            <div id="add-modal-overlay" class="modal-overlay" onclick="closeModal()"></div>
+            <div id="add-modal-content" class="modal-content">
+                <div class="modal-handle"></div>
+                <button class="modal-close" onclick="closeModal()"><i class="fa fa-times"></i></button>
+                <h2 id="modal-title" style="margin-top:0; margin-bottom: 24px; font-size: 22px; color: var(--ink);">Yeni Kayıt</h2>
+                <div id="add-modal-body"></div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+    }
+}
+
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
   pwaPromptEvent = e;
-  // Arayüz render edildiğinde afişi göstereceğiz
   render();
 });
 
@@ -48,27 +98,47 @@ function showFamilyCode() {
   }
 }
 
-let menuOpen = false;
+window.toggleMenu = function(state) {
+  const drawerEl = document.getElementById('main-drawer');
+  const overlayEl = document.getElementById('main-overlay');
+  if(drawerEl && overlayEl) {
+    if(state) {
+      drawerEl.style.transform = 'translateX(0)';
+      overlayEl.style.pointerEvents = 'auto';
+      overlayEl.style.opacity = '1';
+    } else {
+      drawerEl.style.transform = 'translateX(-100%)';
+      overlayEl.style.pointerEvents = 'none';
+      overlayEl.style.opacity = '0';
+    }
+  }
+};
 
 const isIos = () => /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase());
 const isInStandaloneMode = () => ('standalone' in window.navigator) && (window.navigator.standalone);
 
 function render(){
+  initModalDOM();
+
+  // "Ekle" sayfasına (tab=0) geçilmek istendiğinde bunu yakala, ana sayfaya (tab=1) at ve modalı aç.
+  if (tab === 0) {
+      tab = 1;
+      openModal();
+  }
+
   let iosBanner = '';
   if (isIos() && !isInStandaloneMode()) {
-    iosBanner = `<div style="background:var(--card);border:1px solid var(--acc);color:var(--ink);padding:12px 16px;border-radius:12px;margin:16px;box-shadow:0 4px 12px rgba(211,47,47,0.2);display:flex;align-items:center;gap:12px;">
+    iosBanner = `<div style="background:var(--card);border:1px solid var(--acc);color:var(--ink);padding:12px 16px;border-radius:12px;margin:16px;box-shadow:0 4px 12px rgba(59,130,246,0.2);display:flex;align-items:center;gap:12px;">
       <i class="fa fa-arrow-down" style="color:var(--acc);font-size:24px;"></i>
       <div style="font-size:12px;">Uygulamayı kurmak için alttaki <b>Paylaş</b> ikonuna basıp <b>'Ana Ekrana Ekle'</b>yi seçin.</div>
     </div>`;
   }
 
-  // Alt Menü: Sadece Ana Sayfa (Özet), Ekle ve Ayarlar
   const B = [
     {t:'Görünüm', i:'fa-chart-pie', v:1},
     {t:'Ayarlar', i:'fa-cog', v:8}
   ];
   
-  // Hamburger (Yan Menü) İçeriği
   const sideMenu = [
     {t:'Harcamalar', i:'fa-receipt', v:2},
     {t:'Nakit', i:'fa-water', v:3},
@@ -78,9 +148,8 @@ function render(){
     {t:'Sabitler', i:'fa-calendar-check', v:7}
   ];
   
-  // PWA İndirme Afişi
   const pwaBanner = pwaPromptEvent ? `
-    <div style="background:var(--acc);color:white;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;border-radius:12px;margin:16px;box-shadow:0 4px 12px rgba(211,47,47,0.3);">
+    <div style="background:var(--acc);color:white;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;border-radius:12px;margin:16px;box-shadow:0 4px 12px rgba(59,130,246,0.3);">
       <div style="display:flex;align-items:center;gap:12px;">
         <i class="fa fa-download" style="font-size:20px;"></i>
         <div style="display:flex;flex-direction:column;">
@@ -92,51 +161,50 @@ function render(){
     </div>
   ` : '';
 
-  // Üst Başlık (Hamburger Menülü) - DARK GLASSMORPHISM & TEMİZ KAYIT UYARISI
   const topBar = `
-<header style="display:flex;justify-content:space-between;align-items:center;padding:16px 24px; background: rgba(18, 18, 18, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid var(--line); position:sticky;top:0;z-index:50;">
+<header style="display:flex;justify-content:space-between;align-items:center;padding:16px 24px; background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid var(--line); position:sticky;top:0;z-index:50;">
 <div style="display:flex;align-items:center;gap:12px;">
-  <button onclick="menuOpen=true;render()" style="background:transparent;border:none;color:var(--ink);font-size:20px;cursor:pointer;padding:4px;margin-left:-4px;"><i class="fa fa-bars"></i></button>
+  <button onclick="toggleMenu(true)" style="background:transparent;border:none;color:var(--ink);font-size:20px;cursor:pointer;padding:4px;margin-left:-4px; touch-action: manipulation;"><i class="fa fa-bars"></i></button>
   <h1 style="margin:0;font-size:22px;font-weight:800;color:var(--ink);letter-spacing:-0.5px;display:flex;align-items:center;gap:8px;"><i class="fa fa-wallet" style="color:var(--acc);"></i> Müsrif 
     ${ST === 'Kaydedildi' ? '<i class="fa fa-check-circle" style="color:var(--pos);font-size:18px;animation: popIn 0.3s ease-out;"></i>' : ''}
   </h1>
 </div>
 <div style="display:flex;align-items:center;gap:12px;">
-  <button id="btn-logout-header" style="background:#2C2C2C;border:none;color:var(--mut);width:38px;height:38px;border-radius:19px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition: 0.2s;" title="Çıkış Yap">
+  <button id="btn-logout-header" style="background:#F1F5F9;border:none;color:var(--mut);width:38px;height:38px;border-radius:19px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition: 0.2s;" title="Çıkış Yap">
     <i class="fa fa-sign-out-alt"></i>
   </button>
 </div>
 </header>`;
   
-  // Yan Menü Çekmecesi (Drawer) - KOYU TEMA
-  const drawer = `<div style="position:fixed;top:0;left:0;bottom:0;width:260px;background:var(--card);z-index:2000;box-shadow:4px 0 20px rgba(0,0,0,0.5);transform:translateX(${menuOpen?'0':'-100%'});transition:transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);display:flex;flex-direction:column;">
+  const drawer = `<div id="main-drawer" style="position:fixed;top:0;left:0;bottom:0;width:260px;background:var(--card);z-index:2000;box-shadow:4px 0 20px rgba(0,0,0,0.1);transform:translateX(-100%);transition:transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);display:flex;flex-direction:column; will-change: transform;">
 <div style="padding:20px 20px 16px 20px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line);">
   <h2 style="margin:0;font-size:18px;color:var(--ink);">Menü</h2>
-  <button onclick="menuOpen=false;render()" style="background:transparent;border:none;font-size:20px;color:var(--mut);cursor:pointer;"><i class="fa fa-times"></i></button>
+  <button onclick="toggleMenu(false)" style="background:transparent;border:none;font-size:20px;color:var(--mut);cursor:pointer; touch-action: manipulation;"><i class="fa fa-times"></i></button>
 </div>
 <div style="flex:1; overflow-y:auto; padding: 10px 0;">
-  ${sideMenu.map(item=>`<button onclick="tab=${item.v};menuOpen=false;render()" style="background:${tab===item.v?'rgba(211, 47, 47, 0.1)':'transparent'};border:none;padding:12px 24px;width:100%;text-align:left;display:flex;align-items:center;gap:14px;font-size:15px;font-weight:600;color:${tab===item.v?'var(--acc)':'var(--mut)'};cursor:pointer;"><i class="fa ${item.i}" style="width:20px;text-align:center;"></i>${item.t}</button>`).join('')}
+  ${sideMenu.map(item=>`<button onclick="tab=${item.v}; toggleMenu(false); setTimeout(render, 300);" style="background:${tab===item.v?'rgba(59, 130, 246, 0.12)':'transparent'};border:none;padding:12px 24px;width:100%;text-align:left;display:flex;align-items:center;gap:14px;font-size:15px;font-weight:700;color:${tab===item.v?'var(--acc)':'var(--mut)'};cursor:pointer; touch-action: manipulation;"><i class="fa ${item.i}" style="width:20px;text-align:center;"></i>${item.t}</button>`).join('')}
 </div>
-<div style="padding:16px 20px 24px 20px;border-top:1px solid var(--line);background:#151515;">
-  <p style="font-size:11px;color:var(--mut);margin:0 0 10px 0;text-transform:uppercase;font-weight:700;">Ortak Kasa ${familyCode?'(Aktif)':'(Kapalı)'}</p>
-  <button onclick="showFamilyCode()" style="background:#2C2C2C;border:1px solid var(--line);padding:10px;border-radius:12px;width:100%;text-align:center;font-weight:600;font-size:13px;color:var(--ink);cursor:pointer;margin-bottom:8px;box-shadow:0 2px 4px rgba(0,0,0,0.2);"><i class="fa fa-share-alt" style="margin-right:6px;"></i>Kodu Paylaş</button>
-  <button onclick="joinFamily()" style="background:#2C2C2C;border:1px solid var(--line);padding:10px;border-radius:12px;width:100%;text-align:center;font-weight:600;font-size:13px;color:${familyCode?'var(--neg)':'var(--acc)'};cursor:pointer;box-shadow:0 2px 4px rgba(0,0,0,0.2);">${familyCode?'<i class="fa fa-user-times" style="margin-right:6px;"></i>Ortaklıktan Çık':'<i class="fa fa-users" style="margin-right:6px;"></i>Bir Koda Katıl'}</button>
+<div style="padding:16px 20px 24px 20px;border-top:1px solid var(--line);background:#F8FAFC;">
+  <p style="font-size:11px;color:var(--mut);margin:0 0 10px 0;text-transform:uppercase;font-weight:800;letter-spacing:0.5px;">Ortak Kasa ${familyCode?'(Aktif)':'(Kapalı)'}</p>
+  <button onclick="showFamilyCode()" style="background:#FFF;border:1px solid var(--line);padding:12px;border-radius:14px;width:100%;text-align:center;font-weight:700;font-size:13px;color:var(--ink);cursor:pointer;margin-bottom:8px;box-shadow:0 2px 4px rgba(0,0,0,0.02); touch-action: manipulation;"><i class="fa fa-share-alt" style="margin-right:6px;"></i>Kodu Paylaş</button>
+  <button onclick="joinFamily()" style="background:#FFF;border:1px solid var(--line);padding:12px;border-radius:14px;width:100%;text-align:center;font-weight:700;font-size:13px;color:${familyCode?'var(--neg)':'var(--acc)'};cursor:pointer;box-shadow:0 2px 4px rgba(0,0,0,0.02); touch-action: manipulation;">${familyCode?'<i class="fa fa-user-times" style="margin-right:6px;"></i>Ortaklıktan Çık':'<i class="fa fa-users" style="margin-right:6px;"></i>Bir Koda Katıl'}</button>
 </div>
 </div>
-<div onclick="menuOpen=false;render()" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:1900;display:${menuOpen?'block':'none'};transition:opacity 0.3s;opacity:${menuOpen?'1':'0'};"></div>
+<div id="main-overlay" onclick="toggleMenu(false)" style="position:fixed;inset:0;background:rgba(15, 23, 42, 0.4); backdrop-filter: blur(2px); z-index:1900; pointer-events:none; opacity:0; transition:opacity 0.3s; will-change: opacity; -webkit-tap-highlight-color: transparent;"></div>
 `;
   
-  // Alt Menü Barı - DARK GLASSMORPHISM
-  const bottomNav = `<nav class="bottom-nav" style="justify-content:space-around;padding:10px 10px 24px 10px; background: rgba(30, 30, 30, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-top: 1px solid var(--line);">
-    ${B.map((item,i)=>`<button class="nav-item ${tab===item.v?'on':''}" onclick="tab=${item.v};render()">
+  const bottomNav = `<nav class="bottom-nav" style="justify-content:space-around;padding:10px 10px 24px 10px; background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-top: 1px solid var(--line);">
+    ${B.map((item,i)=>`<button class="nav-item ${tab===item.v?'on':''}" onclick="tab=${item.v};render()" style="touch-action: manipulation;">
       <i class="fa ${item.i}"></i>
       <span>${item.t}</span>
     </button>`).join('')}
   </nav>`;
   
-  // İçerik Alanı
-  const fab = tab !== 0 ? `<div class="fab-container"><button class="fab" onclick="tab=0;render()"><i class="fa fa-plus"></i></button></div>` : '';
-  const content = fab + `<div class="main-content"  style="padding-bottom:100px; max-width: 800px; margin: 0 auto;">` + pwaBanner + iosBanner + [vEkle,vOzet,vHarc,vOde,vProj,vGelir,vKart,vSabit,vAyar][tab]() + `</div>`;
+  const fab = (tab !== 0 && tab !== undefined) ? `<div class="fab-container"><button class="fab" onclick="tab=0;render()" style="touch-action: manipulation;"><i class="fa fa-plus"></i></button></div>` : '';
+  const viewsArr = [vEkle, vOzet, vHarc, vOde, vProj]; 
+  const viewFn = (tab >= 0 && tab <= 8 && typeof [vEkle,vOzet,vHarc,vOde,vProj,window.vGelir,vKart,vSabit,vAyar][tab] === 'function') ? [vEkle,vOzet,vHarc,vOde,vProj,window.vGelir,vKart,vSabit,vAyar][tab]() : '';
+  
+  const content = fab + `<div class="main-content"  style="padding-bottom:100px; max-width: 800px; margin: 0 auto;">` + pwaBanner + iosBanner + viewFn + `</div>`;
   
   $('#app').innerHTML = topBar + drawer + content + bottomNav;
   
@@ -144,15 +212,79 @@ function render(){
   if(loBtn) loBtn.onclick = () => { if(authModule && authInstance) authModule.signOut(authInstance); };
 }
 
-addEventListener('beforeunload',()=>{if(document.activeElement&&document.activeElement.blur)document.activeElement.blur()});
-
-window.addEventListener('ortakVeriGuncellendi', (e) => {
-  const yeniVeri = e.detail;
-  if (yeniVeri) {
-    Object.assign(S, yeniVeri); 
-    render(); 
+// Chart Otomasyonu (Açık Tema Renkleri)
+setInterval(() => {
+ if (typeof Chart === 'undefined') return;
+ const M = S.m, c = calc(M), tsp = c.spend;
+ 
+ const ctxHarc = document.getElementById('harcamaGrafigi');
+ if (ctxHarc) {
+  const guncelVeriHash = M + '-' + tsp;
+  if (!window.harcamaGrafigi || window.sonCizilenVeriHarc !== guncelVeriHash) {
+   const it = c.items;
+   const cats = CL().filter(k => it.some(i => i.cat === k.id));
+   const labels = cats.map(k => k.name);
+   const data = cats.map(k => sum(it.filter(i => i.cat === k.id).map(i => i.a)));
+   
+   if (window.harcamaGrafigi) window.harcamaGrafigi.destroy();
+   window.harcamaGrafigi = new Chart(ctxHarc, {
+    type: 'doughnut',
+    data: {
+     labels: labels,
+     datasets: [{
+      data: data,
+      backgroundColor: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#F97316', '#64748B', '#14B8A6'],
+      borderWidth: 1
+     }]
+    },
+    options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+   });
+   window.sonCizilenVeriHarc = guncelVeriHash;
   }
-});
+ } else if (window.harcamaGrafigi) {
+  window.harcamaGrafigi.destroy(); window.harcamaGrafigi = null; window.sonCizilenVeriHarc = null;
+ }
+
+ const ctxKisi = document.getElementById('kisiGrafigi');
+ if (ctxKisi) {
+  const guncelVeriHashK = M + '-' + tsp;
+  if (!window.kisiGrafigi || window.sonCizilenVeriKisi !== guncelVeriHashK) {
+   const it = c.items;
+   const whoTotals = {};
+   it.forEach(i => { whoTotals[i.who] = (whoTotals[i.who] || 0) + i.a; });
+   const sortedWho = Object.entries(whoTotals).sort((a,b) => b[1] - a[1]);
+   const labels = sortedWho.map(w => {
+       const p = PL().find(x => x.id === w[0]);
+       return p ? p.name : w[0];
+   });
+   const data = sortedWho.map(w => w[1]);
+   
+   if (window.kisiGrafigi) window.kisiGrafigi.destroy();
+   window.kisiGrafigi = new Chart(ctxKisi, {
+    type: 'bar',
+    data: {
+     labels: labels,
+     datasets: [{
+      label: 'Harcama Tutarı (₺)',
+      data: data,
+      backgroundColor: '#3B82F6',
+      borderWidth: 1,
+      borderRadius: 4
+     }]
+    },
+    options: {
+     indexAxis: 'y',
+     responsive: true,
+     maintainAspectRatio: false,
+     plugins: { legend: { display: false } }
+    }
+   });
+   window.sonCizilenVeriKisi = guncelVeriHashK;
+  }
+ } else if (window.kisiGrafigi) {
+  window.kisiGrafigi.destroy(); window.kisiGrafigi = null; window.sonCizilenVeriKisi = null;
+ }
+}, 200);
 
 async function initAuth() {
   const fbApp = await import("https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js");
@@ -188,11 +320,9 @@ async function initAuth() {
       document.getElementById('login-screen').style.display = 'none';
       document.getElementById('app-container').style.display = 'block';
       
-      // Aile kodu varsa onu, yoksa kendi UID'sini kullan
       const d = await Store.load(currentUserUID, familyCode);
       S = mig(Object.assign(def(), d || {}));
       
-      // Giriş yapınca varsayılan olarak sekme 1 (Özet) açılsın
       tab = 1;
       
       if(Store.active !== 'firebase') {
