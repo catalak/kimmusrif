@@ -60,7 +60,12 @@ function initShell() {
         </div>
     `;
     document.getElementById('app').innerHTML = shellHTML;
-    document.getElementById('btn-logout-header').onclick = () => { if(authModule && authInstance) authModule.signOut(authInstance); };
+    document.getElementById('btn-logout-header').onclick = () => { 
+        if(authModule && authInstance) authModule.signOut(authInstance); 
+        currentUserUID = null;
+        document.getElementById('login-screen').style.display = 'flex';
+        document.getElementById('app-container').style.display = 'none';
+    };
 }
 
 // Modal Kontrolleri
@@ -191,7 +196,214 @@ function renderShellState() {
     </div>` : '';
 }
 
-// Ana Render (Artık sadece #app-content-area divinin içini yeniler, menü bozulmaz)
+// MODERN UI GRAFİK ÇİZİM MOTORU (Özel Etiketli, Yüzdeli ve Kompakt)
+window.chartHarcama = null;
+window.chartKisi = null;
+
+window.cizGrafikler = function(deneme = 0) {
+    if (typeof Chart === 'undefined') {
+        if (deneme < 20) setTimeout(() => window.cizGrafikler(deneme + 1), 150);
+        return;
+    }
+    if (typeof S === 'undefined' || typeof calc !== 'function') return;
+
+    const M = S.m, c = calc(M);
+    
+    // 1. Kategori Grafiği (Harcamalar Sekmesi - Ortası Toplam Yazılı Halka Grafik)
+    const ctxHarc = document.getElementById('harcamaGrafigi');
+    if (ctxHarc) {
+        if (window.chartHarcama && typeof window.chartHarcama.destroy === 'function') {
+            window.chartHarcama.destroy();
+        }
+        window.chartHarcama = null;
+        
+        const it = c.items;
+        const cats = CL().filter(k => it.some(i => i.cat === k.id))
+            .map(k => ({ name: k.name, val: sum(it.filter(i => i.cat === k.id).map(i => i.a)) }))
+            .sort((a, b) => b.val - a.val);
+        
+        const totalCat = sum(cats.map(x => x.val));
+
+        if (cats.length > 0 && totalCat > 0) {
+            const centerTextPlugin = {
+                id: 'centerText',
+                afterDraw(chart) {
+                    const { ctx, chartArea: { top, bottom, left, right } } = chart;
+                    ctx.save();
+                    const cx = (left + right) / 2;
+                    const cy = (top + bottom) / 2;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    
+                    ctx.font = '600 11px -apple-system, BlinkMacSystemFont, sans-serif';
+                    ctx.fillStyle = '#64748B';
+                    ctx.fillText('TOPLAM HARCAMA', cx, cy - 11);
+                    
+                    ctx.font = '800 16px -apple-system, BlinkMacSystemFont, sans-serif';
+                    ctx.fillStyle = '#0F172A';
+                    ctx.fillText(TL(totalCat), cx, cy + 10);
+                    ctx.restore();
+                }
+            };
+
+            window.chartHarcama = new Chart(ctxHarc, {
+                type: 'doughnut',
+                data: {
+                    labels: cats.map(k => {
+                        const pct = Math.round((k.val / totalCat) * 100);
+                        return `${k.name} (%${pct})`;
+                    }),
+                    datasets: [{
+                        data: cats.map(k => k.val),
+                        backgroundColor: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#14B8A6', '#64748B'],
+                        borderWidth: 2,
+                        borderColor: '#FFFFFF',
+                        hoverOffset: 6
+                    }]
+                },
+                options: { 
+                    responsive: true,
+                    cutout: '68%',
+                    animation: false,
+                    plugins: { 
+                        legend: { 
+                            position: 'bottom', 
+                            labels: { 
+                                color: '#334155', 
+                                font: { size: 12, weight: '600' },
+                                padding: 14,
+                                usePointStyle: true,
+                                pointStyle: 'circle'
+                            } 
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(ctx) {
+                                    const val = ctx.raw || 0;
+                                    const pct = Math.round((val / totalCat) * 100);
+                                    return ` ${TL(val)} (%${pct})`;
+                                }
+                            }
+                        }
+                    } 
+                },
+                plugins: [centerTextPlugin]
+            });
+        }
+    }
+
+    // 2. Kişi Grafiği (Özet Sekmesi - Kompakt, Alt Eksensiz, Sağında Tutar ve % Yazan Çubuklar)
+    const ctxKisi = document.getElementById('kisiGrafigi');
+    if (ctxKisi) {
+        if (window.chartKisi && typeof window.chartKisi.destroy === 'function') {
+            window.chartKisi.destroy();
+        }
+        window.chartKisi = null;
+        
+        const it = c.items;
+        const whoTotals = {};
+        it.forEach(i => { 
+            if (i.who && i.who !== 'aile') {
+                whoTotals[i.who] = (whoTotals[i.who] || 0) + i.a; 
+            }
+        });
+        const sortedWho = Object.entries(whoTotals).sort((a,b) => b[1] - a[1]);
+        const totalWho = sum(sortedWho.map(w => w[1]));
+        
+        if (sortedWho.length > 0 && totalWho > 0) {
+            // Kişi sayısına göre dinamik ve dar yükseklik ayarla
+            const wrapper = ctxKisi.parentElement;
+            if (wrapper) {
+                wrapper.style.height = Math.max(95, sortedWho.length * 46 + 16) + 'px';
+                wrapper.style.background = '#F8FAFC';
+                wrapper.style.borderRadius = '14px';
+                wrapper.style.padding = '10px 14px';
+                wrapper.style.border = '1px solid var(--line)';
+            }
+
+            const barLabelPlugin = {
+                id: 'barRightLabels',
+                afterDatasetsDraw(chart) {
+                    const { ctx } = chart;
+                    ctx.save();
+                    ctx.font = '700 12px -apple-system, BlinkMacSystemFont, sans-serif';
+                    ctx.fillStyle = '#1E293B';
+                    ctx.textBaseline = 'middle';
+
+                    const meta = chart.getDatasetMeta(0);
+                    meta.data.forEach((bar, index) => {
+                        const val = sortedWho[index][1];
+                        const pct = Math.round((val / totalWho) * 100);
+                        const text = `${TL(val)} (%${pct})`;
+                        ctx.fillText(text, bar.x + 8, bar.y);
+                    });
+                    ctx.restore();
+                }
+            };
+
+            const maxVal = sortedWho[0][1];
+
+            window.chartKisi = new Chart(ctxKisi, {
+                type: 'bar',
+                data: {
+                    labels: sortedWho.map(w => { const p = PL().find(x => x.id === w[0]); return p ? p.name : w[0]; }),
+                    datasets: [{
+                        data: sortedWho.map(w => w[1]),
+                        backgroundColor: ['#3B82F6', '#10B981', '#8B5CF6', '#F59E0B'],
+                        borderRadius: 10,
+                        borderSkipped: false,
+                        barThickness: 22
+                    }]
+                },
+                options: { 
+                    indexAxis: 'y', 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    animation: false,
+                    layout: {
+                        padding: { right: 115 } // Sağdaki "Tutar (%Yüzde)" yazısı için alan
+                    },
+                    scales: {
+                        x: { 
+                            display: false, // Alt sayısal ekseni ve ızgaraları tamamen gizle
+                            max: maxVal * 1.05
+                        },
+                        y: { 
+                            border: { display: false },
+                            grid: { display: false },
+                            ticks: { 
+                                color: '#0F172A', 
+                                font: { size: 13, weight: '700' },
+                                padding: 8
+                            } 
+                        }
+                    },
+                    plugins: { 
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(ctx) {
+                                    const val = ctx.raw || 0;
+                                    const pct = Math.round((val / totalWho) * 100);
+                                    return ` ${TL(val)} (Pay: %${pct})`;
+                                }
+                            }
+                        }
+                    } 
+                },
+                plugins: [barLabelPlugin]
+            });
+        } else {
+            const parent = ctxKisi.parentElement;
+            if (parent) {
+                parent.style.height = 'auto';
+                parent.innerHTML = '<p class="mut" style="text-align:center; padding:16px; font-size:13px;">Bireysel harcama kaydı yok (Sadece ortak aile giderleri girilmiş).</p>';
+            }
+        }
+    }
+};
+
+// Ana Render 
 function render(){
     initShell();
 
@@ -208,6 +420,9 @@ function render(){
     const viewFn = (tab >= 0 && tab <= 8 && typeof viewsArr[tab] === 'function') ? viewsArr[tab]() : '';
     
     document.getElementById('app-content-area').innerHTML = viewFn;
+    
+    // HTML basıldıktan hemen sonra grafikleri çiz
+    requestAnimationFrame(() => window.cizGrafikler(0));
 }
 
 window.addEventListener('ortakVeriGuncellendi', (e) => {
@@ -224,7 +439,6 @@ async function initAuth() {
     projectId: "kimmusrif"
   };
 
-  // HATA ÇÖZÜMÜ BURADA: Uygulama yoksa başlat, varsa mevcut olanı kullan
   const app = fbApp.getApps().length === 0 ? fbApp.initializeApp(firebaseConfig) : fbApp.getApp();
   
   authInstance = authModule.getAuth(app);
@@ -237,6 +451,23 @@ async function initAuth() {
         const errDiv = document.getElementById('login-error');
         if(errDiv) errDiv.style.display = 'block';
       });
+    });
+  }
+
+  // Misafir Girişi (Üye Olmadan Devam Et / Yerel Test)
+  const guestBtn = document.getElementById('btn-guest-login');
+  if(guestBtn) {
+    guestBtn.addEventListener('click', async () => {
+      currentUserUID = 'misafir_kullanici';
+      document.getElementById('login-screen').style.display = 'none';
+      document.getElementById('app-container').style.display = 'block';
+      
+      try { await Store.switchTo('local'); } catch(e){}
+      
+      const d = await Store.load(currentUserUID, null);
+      S = mig(Object.assign(def(), d || {}));
+      tab = 1;
+      render();
     });
   }
 
@@ -261,7 +492,6 @@ async function initAuth() {
     }
   });
 }
-
 
 const originalSave = save;
 window.save = function() {

@@ -1,5 +1,5 @@
-const CACHE_NAME = 'kimmusrif-v11-final';
-const urlsToCache = ['./', './index.html', './css/style.css?v=11', './js/app.js?v=11', './js/core.js?v=11', './js/views.js?v=11', './js/storage.js?v=11'];
+const CACHE_NAME = 'kimmusrif-v12-final';
+const urlsToCache = ['./', './index.html', './css/style.css?v=12', './js/app.js?v=12', './js/core.js?v=12', './js/views.js?v=12', './js/storage.js?v=12'];
 
 self.addEventListener('install', event => {
   self.skipWaiting();
