@@ -218,11 +218,15 @@ async function initAuth() {
   const fbApp = await import("https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js");
   authModule = await import("https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js");
   
-  const app = fbApp.initializeApp({
+  const firebaseConfig = {
     apiKey: "AIzaSyDxiXUHNZzsA5wa_VjJMaWuB4RyrgeibU8",
     authDomain: "kimmusrif.firebaseapp.com",
     projectId: "kimmusrif"
-  });
+  };
+
+  // HATA ÇÖZÜMÜ BURADA: Uygulama yoksa başlat, varsa mevcut olanı kullan
+  const app = fbApp.getApps().length === 0 ? fbApp.initializeApp(firebaseConfig) : fbApp.getApp();
+  
   authInstance = authModule.getAuth(app);
   const provider = new authModule.GoogleAuthProvider();
 
@@ -257,6 +261,7 @@ async function initAuth() {
     }
   });
 }
+
 
 const originalSave = save;
 window.save = function() {

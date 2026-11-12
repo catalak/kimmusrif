@@ -29,11 +29,12 @@ const Store = (() => {
         if (this.db) return;
         
         // Dinamik import: index.html'i bozmadan veya npm kurmadan modülleri doğrudan çeker
-        const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js");
-        const { getFirestore, doc, onSnapshot } = await import("https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js");
-        
-        const app = initializeApp(firebaseConfig);
-        this.db = getFirestore(app);
+        const { initializeApp, getApps, getApp } = await import("https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js");
+		const { getFirestore, doc, onSnapshot } = await import("https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js");
+
+		// Eğer Firebase zaten başlatıldıysa var olanı al, yoksa yeni başlat
+		const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+		this.db = getFirestore(app);
         
         // Veritabanında "butce" koleksiyonu altında "ortak_veri" dökümanını kullanacağız
         this.docRef = doc(this.db, "butce", familyCode || uid || "ortak_veri");
