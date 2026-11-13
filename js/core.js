@@ -22,6 +22,76 @@ const mkd=s=>{const p=pd(s);return mk(p.y,p.m)};
 const inPer = (dt, M) => {
   const day = S.payDay || 1;
   if (day === 1) return mkd(dt) === M;
+  
+  function demoData(){
+ const M=nowM(),dt=(m,d)=>{const y=Math.floor(m/12),mo=m%12;return y+'-'+String(mo+1).padStart(2,'0')+'-'+String(Math.min(d,28)).padStart(2,'0')};
+ const inc={};
+ [M-2,M-1,M].forEach((k,idx)=>{inc[ikey(k)]={ben:68000,es:54000,bene:idx===1?12000:0}});
+ const tx=[
+  // 2 Ay Önce (Eylül)
+  {id:'d1',type:'out',date:dt(M-2,4),amt:6400,cat:'market',who:'aile',pay:'k1',inst:1,note:'Aylık büyük market'},
+  {id:'d2',type:'out',date:dt(M-2,7),amt:4200,cat:'cocuk',who:'aile',pay:'k1',inst:2,note:'Defne okul kırtasiye & çanta'},
+  {id:'d3',type:'out',date:dt(M-2,11),amt:7850,cat:'giyim',who:'p2',pay:'k2',inst:3,note:'Zeynep sonbahar gardırop'},
+  {id:'d4',type:'out',date:dt(M-2,14),amt:2400,cat:'ulasim',who:'p1',pay:'k1',inst:1,note:'Yakıt'},
+  {id:'d5',type:'out',date:dt(M-2,18),amt:3100,cat:'disari',who:'p2',pay:'k2',inst:1,note:'Arkadaşlarla brunch & kahve'},
+  {id:'d6',type:'out',date:dt(M-2,22),amt:2650,cat:'bakim',who:'p2',pay:'k2',inst:1,note:'Kuaför & cilt bakımı'},
+  {id:'d7',type:'out',date:dt(M-2,26),amt:2900,cat:'market',who:'aile',pay:'cash',inst:1,note:'Haftalık pazar & kasap'},
+  // Geçen Ay (Ekim)
+  {id:'d8',type:'out',date:dt(M-1,3),amt:6900,cat:'market',who:'aile',pay:'k1',inst:1,note:'Market alışverişi'},
+  {id:'d9',type:'out',date:dt(M-1,6),amt:3400,cat:'cocuk',who:'aile',pay:'k1',inst:1,note:'Emir bez & mama + kreş'},
+  {id:'d10',type:'out',date:dt(M-1,9),amt:9400,cat:'giyim',who:'p2',pay:'k2',inst:3,note:'Zeynep trençkot & bot'},
+  {id:'d11',type:'out',date:dt(M-1,12),amt:4600,cat:'eglence',who:'p2',pay:'k2',inst:2,note:'Hafta sonu aile kaçamağı'},
+  {id:'d12',type:'out',date:dt(M-1,16),amt:2600,cat:'ulasim',who:'p1',pay:'k1',inst:1,note:'Yakıt'},
+  {id:'d13',type:'out',date:dt(M-1,20),amt:3650,cat:'disari',who:'p2',pay:'k2',inst:1,note:'Dışarda akşam yemeği & tatlı'},
+  {id:'d14',type:'out',date:dt(M-1,24),amt:1850,cat:'giyim',who:'p1',pay:'k1',inst:1,note:'Kerem gömlek'},
+  {id:'d15',type:'out',date:dt(M-1,27),amt:3200,cat:'bakim',who:'p2',pay:'k2',inst:1,note:'Kozmetik yenileme'},
+  // Bu Ay (Kasım)
+  {id:'d16',type:'out',date:dt(M,2),amt:7100,cat:'market',who:'aile',pay:'k1',inst:1,note:'Mutfak alışverişi'},
+  {id:'d17',type:'out',date:dt(M,5),amt:8600,cat:'giyim',who:'p2',pay:'k2',inst:3,note:'Zeynep çanta & triko'},
+  {id:'d18',type:'out',date:dt(M,8),amt:3800,cat:'cocuk',who:'aile',pay:'k1',inst:1,note:'Defne yüzme kursu & Emir oyuncak'},
+  {id:'d19',type:'out',date:dt(M,10),amt:2950,cat:'disari',who:'p2',pay:'k2',inst:1,note:'Kahve, pasta & öğle yemekleri'},
+  {id:'d20',type:'out',date:dt(M,11),amt:2500,cat:'ulasim',who:'p1',pay:'k1',inst:1,note:'Yakıt'},
+  {id:'d21',type:'out',date:dt(M,12),amt:2400,cat:'bakim',who:'p2',pay:'k2',inst:1,note:'Bakım & spa paketi'}
+ ];
+ return {
+  people:[{id:'p1',name:'Kerem'},{id:'p2',name:'Zeynep'},{id:'aile',name:'Tüm aile'}],
+  cats:mkL(NEWC),
+  accts:[{id:'h1',name:'Ortak Maaş Hesabı',bal:42000,bm:ikey(M-2)}],
+  defAcct:'h1',
+  assets:[{name:'Kenardaki Gram Altın',tur:'Gram altın',miktar:18,kur:3050}],
+  isrc:[
+   {id:'ben',name:'Kerem maaş',ff:1,day:15,acct:'h1'},
+   {id:'es',name:'Zeynep maaş',ff:1,day:15,acct:'h1'},
+   {id:'bene',name:'Ek ders / Prim',ff:0,day:20,acct:'h1'}
+  ],
+  inc, incMode:'matrix', m:M, mode:'cash', extra:15000,
+  cards:[
+   {id:'k1',name:'Ortak Kart (Bonus)',cut:5,due:15,stmt:0,stmtDue:''},
+   {id:'k2',name:'Zeynep Kart (World)',cut:12,due:22,stmt:0,stmtDue:''}
+  ],
+  stmts:[
+   {id:'st1',card:'k1',dt:dt(M-1,15),amt:14800,asg:5920,d:2,odenen:14800},
+   {id:'st2',card:'k2',dt:dt(M-1,22),amt:16900,asg:6760,d:2,odenen:16900},
+   {id:'st3',card:'k1',dt:dt(M,15),amt:15400,asg:6160,d:0,odenen:0},
+   {id:'st4',card:'k2',dt:dt(M,22),amt:18750,asg:7500,d:0,odenen:0}
+  ],
+  fixed:[
+   {name:'Site Aidatı',amt:3500,cat:'konut',who:'aile',day:5,acct:'h1'},
+   {name:'Elektrik + Su + Doğalgaz',amt:3400,cat:'fatura',who:'aile',day:18,acct:'h1'},
+   {name:'İnternet & Telefonlar',amt:1450,cat:'fatura',who:'aile',day:20,acct:'h1'},
+   {name:'Defne & Emir Kreş/Etüt',amt:9500,cat:'cocuk',who:'aile',day:10,acct:'h1'}
+  ],
+  yearly:[
+   {name:'Araç Kasko & Trafik',amt:16500,cat:'ulasim',who:'aile',month:4,day:12,pm:'k1',inst:3},
+   {name:'DASK & Konut Sigortası',amt:3200,cat:'konut',who:'aile',month:9,day:5,pm:'cash',inst:1}
+  ],
+  debts:[
+   {name:'Ziraat Konut Kredisi',kind:'kredi',pay:28500,day:16,end:ikey(M+84),acct:'h1'},
+   {name:'Garanti İhtiyaç Kredisi',kind:'kredi',pay:9200,day:18,end:ikey(M+14),acct:'h1'}
+  ],
+  tx
+ };
+}
   const p = pd(dt);
   return (p.d >= day ? mk(p.y, p.m) : mk(p.y, p.m) - 1) === M;
 };

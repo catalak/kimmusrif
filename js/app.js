@@ -457,19 +457,22 @@ async function initAuth() {
   // Misafir Girişi (Üye Olmadan Devam Et / Yerel Test)
   const guestBtn = document.getElementById('btn-guest-login');
   if(guestBtn) {
-    guestBtn.addEventListener('click', async () => {
-      currentUserUID = 'misafir_kullanici';
-      document.getElementById('login-screen').style.display = 'none';
-      document.getElementById('app-container').style.display = 'block';
-      
-      try { await Store.switchTo('local'); } catch(e){}
-      
-      const d = await Store.load(currentUserUID, null);
-      S = mig(Object.assign(def(), d || {}));
-      tab = 1;
-      render();
-    });
-  }
+    guestBtn.onclick = async () => {
+        currentUserUID = 'misafir_kullanici';
+        familyCode = null;
+        await Store.switchTo('local');
+        let localData = await Store.load();
+        if(!localData || !localData.tx || !localData.tx.length) {
+            S = mig(demoData());
+            await Store.save(S);
+        } else {
+            S = mig(Object.assign(def(), localData));
+        }
+        loginScreen.style.display = 'none';
+        appShell.style.display = 'block';
+        render();
+    };
+}
 
   authModule.onAuthStateChanged(authInstance, async (user) => {
     if (user) {
