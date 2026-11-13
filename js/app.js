@@ -473,6 +473,7 @@ async function initAuth() {
         render();
     };
 }
+  }
 
   authModule.onAuthStateChanged(authInstance, async (user) => {
     if (user) {
