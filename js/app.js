@@ -454,7 +454,7 @@ async function initAuth() {
     });
   }
 
-  // Misafir Girişi (Üye Olmadan Devam Et / Yerel Test)
+// Misafir Girişi (Üye Olmadan Devam Et)
   const guestBtn = document.getElementById('btn-guest-login');
   if(guestBtn) {
     guestBtn.onclick = async () => {
@@ -463,16 +463,16 @@ async function initAuth() {
         await Store.switchTo('local');
         let localData = await Store.load();
         if(!localData || !localData.tx || !localData.tx.length) {
-            S = mig(demoData());
+            S = mig(typeof demoData === 'function' ? demoData() : def());
             await Store.save(S);
         } else {
             S = mig(Object.assign(def(), localData));
         }
-        loginScreen.style.display = 'none';
-        appShell.style.display = 'block';
+        tab = 1;
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('app-container').style.display = 'block';
         render();
     };
-}
   }
 
   authModule.onAuthStateChanged(authInstance, async (user) => {
@@ -499,6 +499,7 @@ async function initAuth() {
 
 const originalSave = save;
 window.save = function() {
+   if(currentUserUID === 'misafir_kullanici' && Store.active === 'firebase') Store.switchTo('local');
    if(Store.active === 'firebase' && !currentUserUID) return; 
    Store.save(S, currentUserUID, familyCode);
    ST = 'Kaydedildi';
