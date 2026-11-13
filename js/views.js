@@ -217,8 +217,24 @@ const hesapSec=()=>{const ends=S.accts.map(a=>({a,e:balEnd(a,nowM())}));return `
  <div class=sec><h2>Diğer varlıklar</h2><p class=mut>Altın, döviz gibi. Miktarı ve bugünkü kuru yaz, TL karşılığı hesaplanır.</p>
  ${S.assets.map((d,i)=>{const tl=!d.tur||d.tur==='TL';return `<div class=row><input style="flex:2;min-width:140px" value="${esc(d.name)}" onchange="U('assets',${i},'name',this.value,1)"><select style="width:120px" onchange="U('assets',${i},'tur',this.value,1)">${['TL','Dolar','Euro','Gram altın'].map(t=>`<option${(d.tur||'TL')===t?' selected':''}>${t}</option>`).join('')}</select><input type=number step=any style="width:110px" placeholder="Miktar" value="${d.miktar||''}" onchange="U('assets',${i},'miktar',this.value,1)">${tl?'':`<input type=number step=any style="width:110px" placeholder="Kur (₺)" value="${d.kur||''}" onchange="U('assets',${i},'kur',this.value,1)">`}<span class=mut>= ${TL(dTL(d))}</span><button class=b onclick="del('assets',${i})">Sil</button></div>`}).join('')}
  <button class=b onclick="S.assets.push({name:'Yeni varlık',tur:'Gram altın',miktar:0,kur:0});save();render()">Varlık ekle</button></div>`};
-const depoSec=()=>`<div class=sec><h2>Veri depolama</h2><p class=mut>Verin şu an <b>${esc(Store.label())}</b> üzerinde tutuluyor: yalnızca bu tarayıcıda, kimsenin sunucusunda değil. Tarayıcı verisini temizlersen silinir, o yüzden düzenli yedek al. Diğer depolar hazır olunca buradan seçip mevcut verini kopyalayabileceksin.</p>
- ${Object.entries(Store.adapters).map(([k,a])=>`<div class=row><label style="display:flex;gap:8px;align-items:center;color:var(--ink);font-size:15px"><input type=radio name=depo style="width:auto" ${Store.active===k?'checked':''} ${a.ready?'':'disabled'} onchange="useStore('${k}')">${esc(a.name)}</label><span class=mut>${a.ready?(Store.active===k?'Aktif':''):esc(a.note||'Yakında')}</span></div>`).join('')}</div>`;
+const depoSec=()=>{
+ const isGuest = typeof currentUserUID === 'undefined' || !currentUserUID || currentUserUID === 'misafir_kullanici';
+ if(isGuest) return '';
+ return `<div class=sec><h2>Veri depolama</h2>
+ <div style="display:flex;flex-direction:column;gap:10px;margin-top:12px;">
+ ${Object.entries(Store.adapters).map(([k,a])=>{
+  const on=Store.active===k;
+  return `<div onclick="${!on?`useStore('${k}')`:''}" style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-radius:14px;border:2px solid ${on?'var(--acc)':'var(--line)'};background:${on?'rgba(59,130,246,0.06)':'#FFFFFF'};cursor:pointer;transition:0.2s;">
+   <div style="display:flex;align-items:center;gap:12px;">
+    <i class="fa ${on?'fa-check-circle':'fa-circle'}" style="font-size:20px;color:${on?'var(--acc)':'#CBD5E1'};"></i>
+    <div style="font-weight:800;font-size:14px;color:var(--ink);">${esc(a.name)}</div>
+   </div>
+   ${on?'<span style="background:var(--acc);color:#FFF;font-size:11px;font-weight:800;padding:4px 10px;border-radius:10px;">AKTİF</span>':''}
+  </div>`;
+ }).join('')}
+ </div></div>`;
+};
+
 async function useStore(k){try{await Store.switchTo(k);stat('Depo değiştirildi: '+Store.label());render()}catch(e){stat('Depo değiştirilemedi')}}
 function vAyar(){return `<div class=sec><h2>Kişiler</h2><p class=mut>Harcamanın kime ait olduğunu bu liste belirler. Adı değiştirirsen eski kayıtlar da yeni adla görünür. Birini silersen kayıtları Tüm aile’ye aktarılır.</p>
  ${PL().map((p,i)=>`<div class=row><input style="flex:1;min-width:160px" value="${esc(p.name)}" onchange="rn('people',${i},this.value)"><span class=mut style="width:80px">${useN('who',p.id)} kayıt</span>${p.id==='aile'?'<span class=mut style="width:64px;text-align:center">sabit</span>':`<button class=b style="width:64px" onclick="pDel('${p.id}')">Sil</button>`}</div>`).join('')}

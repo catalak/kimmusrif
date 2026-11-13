@@ -22,7 +22,6 @@ const Store = (() => {
       async load() { try { return JSON.parse(localStorage.getItem(KEY) || localStorage.getItem(LEGACY) || 'null') } catch (e) { return null } },
       async save(state) { localStorage.setItem(KEY, JSON.stringify(state)) }
     },
-    drive: { name: 'Google Drive (İptal)', ready: false, note: 'Yerine Firebase eklendi' },
     firebase: {
       name: 'Firebase (Bulut)', ready: true,
       db: null, docRef: null, currentDocId: null,
