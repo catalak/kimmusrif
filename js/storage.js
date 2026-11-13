@@ -5,7 +5,6 @@
 const Store = (() => {
   const KEY = 'kimmusrif.veri', LEGACY = 'butce', AKEY = 'kimmusrif.depo'; 
   
-  // Verdiğin Firebase kimlik bilgileri
   const firebaseConfig = {
     apiKey: "AIzaSyDxiXUHNZzsA5wa_VjJMaWuB4RyrgeibU8",
     authDomain: "kimmusrif.firebaseapp.com",
@@ -15,36 +14,36 @@ const Store = (() => {
     appId: "1:844853880507:web:fed0371d4facee67ec6b9e"
   };
 
+  let unsubSnapshot = null;
+
   const adapters = {
     local: {
       name: 'Bu cihaz', ready: true,
-      async load(uid, familyCode=null) { try { return JSON.parse(localStorage.getItem(KEY) || localStorage.getItem(LEGACY) || 'null') } catch (e) { return null } },
-      async save(state, uid, familyCode=null) { localStorage.setItem(KEY, JSON.stringify(state)) }
+      async load() { try { return JSON.parse(localStorage.getItem(KEY) || localStorage.getItem(LEGACY) || 'null') } catch (e) { return null } },
+      async save(state) { localStorage.setItem(KEY, JSON.stringify(state)) }
     },
     drive: { name: 'Google Drive (İptal)', ready: false, note: 'Yerine Firebase eklendi' },
     firebase: {
-      name: 'Firebase (Ortak)', ready: true,
-      db: null, docRef: null,
+      name: 'Firebase (Bulut)', ready: true,
+      db: null, docRef: null, currentDocId: null,
       async init(uid, familyCode=null) {
-        if (this.db) return;
-        
-        // Dinamik import: index.html'i bozmadan veya npm kurmadan modülleri doğrudan çeker
+        if (!uid || uid === 'misafir_kullanici') {
+          throw new Error('Misafir modunda bulut depolama kullanılamaz.');
+        }
+        const targetDocId = familyCode || uid;
+        if (this.db && this.currentDocId === targetDocId) return;
+
         const { initializeApp, getApps, getApp } = await import("https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js");
-		const { getFirestore, doc, onSnapshot } = await import("https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js");
+        const { getFirestore, doc, onSnapshot } = await import("https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js");
 
-		// Eğer Firebase zaten başlatıldıysa var olanı al, yoksa yeni başlat
-		const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
-		this.db = getFirestore(app);
-        
-        // Veritabanında "butce" koleksiyonu altında "ortak_veri" dökümanını kullanacağız
-        this.docRef = doc(this.db, "butce", familyCode || uid || "ortak_veri");
+        const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+        this.db = getFirestore(app);
+        this.currentDocId = targetDocId;
+        this.docRef = doc(this.db, "butce", targetDocId);
 
-        // Gerçek zamanlı (real-time) eşitleme
-        onSnapshot(this.docRef, (docSnap) => {
-          // Eğer değişikliği o an telefonu elinde tutan kişi (örn. sen) yaptıysa ekran zaten günceldir, pas geç
+        if (unsubSnapshot) unsubSnapshot();
+        unsubSnapshot = onSnapshot(this.docRef, (docSnap) => {
           if (docSnap.metadata.hasPendingWrites) return; 
-          
-          // Değişiklik karşı taraftan (örn. Selda) geldiyse window'a haber sal
           if (docSnap.exists()) {
             window.dispatchEvent(new CustomEvent('ortakVeriGuncellendi', { detail: docSnap.data().state }));
           }
@@ -82,13 +81,20 @@ const Store = (() => {
     label() { return adapters[active].name },
     load(uid, fc) { return Promise.resolve(adapters[active].load(uid, fc)) },
     save(state, uid, fc) { return Promise.resolve(adapters[active].save(state, uid, fc)) },
-    async switchTo(name) {
+    async switchTo(name, uid=null, fc=null) {
       const to = adapters[name];
       if (!to || !to.ready) throw new Error('Depo hazır değil');
       if (name === active) return;
       
-      const data = await adapters[active].load();
-      await to.save(data);
+      const currentUid = uid || (typeof currentUserUID !== 'undefined' ? currentUserUID : null);
+      const currentFc = fc || (typeof familyCode !== 'undefined' ? familyCode : null);
+
+      if (name === 'firebase' && (!currentUid || currentUid === 'misafir_kullanici')) {
+        throw new Error('Bulut depolama için Google ile giriş yapmalısınız.');
+      }
+
+      const data = await adapters[active].load(currentUid, currentFc);
+      if (data) await to.save(data, currentUid, currentFc);
       active = name;
       try { localStorage.setItem(AKEY, name) } catch (e) {}
     }
