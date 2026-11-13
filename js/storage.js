@@ -84,6 +84,12 @@ const Store = (() => {
       const to = adapters[name];
       if (!to || !to.ready) throw new Error('Depo hazır değil');
       if (name === active) return;
+
+      if (name === 'local') {
+        active = 'local';
+        try { localStorage.setItem(AKEY, 'local') } catch (e) {}
+        return;
+      }
       
       const currentUid = uid || (typeof currentUserUID !== 'undefined' ? currentUserUID : null);
       const currentFc = fc || (typeof familyCode !== 'undefined' ? familyCode : null);
