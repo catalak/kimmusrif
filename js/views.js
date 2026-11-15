@@ -1,4 +1,5 @@
 // Modern Segmented Control (iOS Tarzı Kapsül Buton) Stili Enjeksiyonu
+// Modern Segmented Control (iOS Tarzı Kapsül Buton) Stili Enjeksiyonu
 (function injectModernUI(){
  if(document.getElementById('musrif-ui-patch')) return;
  const st=document.createElement('style');
@@ -35,11 +36,56 @@
     color: var(--acc) !important;
     box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08) !important;
   }
+  .mx-cell {
+    cursor: pointer;
+    border-radius: 8px;
+    transition: background 0.15s;
+  }
+  .mx-cell:hover {
+    background: rgba(59, 130, 246, 0.1) !important;
+    color: var(--acc);
+  }
+  .mx-cell.sel {
+    background: rgba(59, 130, 246, 0.16) !important;
+    color: var(--acc);
+    font-weight: 800;
+  }
  `;
  document.head.appendChild(st);
 })();
 
-const mpick=()=>`<div class=row><input type=month style="width:auto" value="${Math.floor(S.m/12)}-${String(S.m%12+1).padStart(2,'0')}" onchange="S.m=mkd(this.value+'-01');save();render()"></div>`;
+window.txFilter = window.txFilter || { q: '', key: 'date', dir: -1, open: false };
+window.harcDrill = window.harcDrill || null;
+
+window.setTxSort = function(key) {
+ if (window.txFilter.key === key) {
+  window.txFilter.dir *= -1;
+ } else {
+  window.txFilter.key = key;
+  window.txFilter.dir = (key === 'date' || key === 'amt') ? -1 : 1;
+ }
+ window.txFilter.open = true;
+ render();
+};
+
+window.setTxSearch = function(val) {
+ window.txFilter.q = val;
+ window.txFilter.open = true;
+ render();
+ const inp = document.getElementById('tx-search-inp');
+ if (inp) { inp.focus(); inp.setSelectionRange(val.length, val.length); }
+};
+
+window.toggleHarcDrill = function(cat, who) {
+ if (window.harcDrill && window.harcDrill.cat === cat && window.harcDrill.who === who) {
+  window.harcDrill = null;
+ } else {
+  window.harcDrill = { cat, who };
+ }
+ render();
+};
+
+const mpick=()=>`<div class=row><input type=month style="width:auto" value="${Math.floor(S.m/12)}-${String(S.m%12+1).padStart(2,'0')}" onchange="S.m=mkd(this.value+'-01');window.harcDrill=null;save();render()"></div>`;
 const debtAll=()=>sum(S.stmts.map(x=>Math.max(0,x.amt-sPaid(x))))+sum(S.debts.filter(d=>d.kind!=='kredi').map(dTL));
 function noteOzet(M,c){const n=[],net=c.inc-c.cash;
  if(!c.inc&&!c.spend&&!c.cash)return['Bu ay için henüz kayıt yok. Ekle sekmesinden harcama, Gelirler sekmesinden gelir girince burada özet belirir.'];
@@ -61,8 +107,32 @@ function noteHarc(M,c){const n=[],tsp=c.spend;if(!tsp)return n;
  return n}
 const notesHtml=a=>a.length?`<div class=notes>${a.map(t=>`<p>${esc(t)}</p>`).join('')}</div>`:'';
 
-function vOzet(){const M=S.m,c=calc(M),net=c.inc-c.cash,yy=sum(S.yearly.map(y=>yA(y,Math.floor(M/12))))/12;
- const list=S.tx.map((t,i)=>({t,i})).filter(x=>mkd(x.t.date)===M||mkd(x.t.date)===M-1).sort((a,b)=>b.t.date.localeCompare(a.t.date));
+function vOzet(){
+ const M=S.m,c=calc(M),net=c.inc-c.cash,yy=sum(S.yearly.map(y=>yA(y,Math.floor(M/12))))/12;
+ const tf=window.txFilter;
+ const q=tf.q.trim().toLocaleLowerCase('tr');
+
+ let list=S.tx.map((t,i)=>({t,i})).filter(x=>q ? true : (mkd(x.t.date)===M||mkd(x.t.date)===M-1));
+ if(q){
+  list=list.filter(({t})=>{
+   const hay=[t.date, cn(t.cat), wn(t.who), pn(t.pay), t.note||'', String(t.amt)].join(' ').toLocaleLowerCase('tr');
+   return hay.includes(q);
+  });
+ }
+
+ list.sort((a,b)=>{
+  let va,vb;
+  if(tf.key==='date'){va=a.t.date;vb=b.t.date;}
+  else if(tf.key==='cat'){va=cn(a.t.cat);vb=cn(b.t.cat);}
+  else if(tf.key==='who'){va=a.t.type==='in'?'':wn(a.t.who);vb=b.t.type==='in'?'':wn(b.t.who);}
+  else if(tf.key==='pay'){va=pn(a.t.pay);vb=pn(b.t.pay);}
+  else if(tf.key==='amt'){va=a.t.amt;vb=b.t.amt;}
+  if(typeof va==='number') return (va-vb)*tf.dir;
+  return String(va).localeCompare(String(vb),'tr')*tf.dir;
+ });
+
+ const thSort=(lbl,key,align='left')=>`<th onclick="setTxSort('${key}')" style="padding:10px 6px; text-align:${align}; cursor:pointer; user-select:none; white-space:nowrap; color:${tf.key===key?'var(--acc)':'var(--mut)'}; font-size:12px;">${lbl} ${tf.key===key?(tf.dir===1?'▲':'▼'):''}</th>`;
+
  return `<div class=sec>${mpick()}
  <div style="max-width:100%; margin-bottom: 25px; display: ${c.spend > 0 ? 'block' : 'none'}">
   <h3 style="text-align:center; color:var(--ink); margin-top:10px; margin-bottom:10px; font-size:16px;">Kimin Harcaması Daha Çok?</h3>
@@ -76,24 +146,62 @@ function vOzet(){const M=S.m,c=calc(M),net=c.inc-c.cash,yy=sum(S.yearly.map(y=>y
  ${notesHtml(noteOzet(M,c))}
  <p class=mut><b>Ödemeler</b> kira, aidat, kredi, kart ekstresi gibi hesaptan çıkan paralardır. <b>Harcama</b> alışverişi yaptığın ayda, taksitli de olsa tam tutardır. İkisi aynı para değil, bu yüzden ayrı gösteriliyor.${yy?` Yıllık giderler için her ay ayırman gereken: ${TL(yy)}.`:''}</p>
  
- <details class="history-accordion" style="margin-top:24px; background:#F8FAFC; border:1px solid var(--line); border-radius:16px; overflow:hidden;">
+ <details class="history-accordion" ${tf.open?'open':''} ontoggle="window.txFilter.open=this.open" style="margin-top:24px; background:#F8FAFC; border:1px solid var(--line); border-radius:16px; overflow:hidden;">
     <summary style="padding:16px 20px; font-weight:800; color:var(--ink); cursor:pointer; font-size:14px; outline:none; list-style:none; display:flex; justify-content:space-between; align-items:center; user-select:none;">
         Son İşlemleri Gör / Düzenle <i class="fa fa-chevron-down" style="color:var(--mut);"></i>
     </summary>
     <div style="padding: 0 20px 20px 20px; overflow-x:auto;">
-        ${list.length?`<table style="width:100%; font-size:13px; text-align:left; border-collapse:collapse;"><tbody>${list.map(({t,i})=>`<tr style="border-bottom:1px solid var(--line);"><td style="padding:12px 6px;">${t.date.slice(8)}.${t.date.slice(5,7)}</td><td style="padding:12px 6px;">${esc(cn(t.cat))}</td><td style="padding:12px 6px;">${t.type==='in'?'':esc(wn(t.who))}</td><td class=mut style="padding:12px 6px; font-size:11px;">${esc(pn(t.pay))}${t.inst>1?' · '+t.inst+' taksit':''}</td><td class="${t.type==='in'?'pos':'ink'}" style="padding:12px 6px; font-weight:700;">${t.type==='in'?'+':''}${TL(t.amt)}</td><td style="padding:12px 6px; text-align:right; white-space:nowrap;"><button style="background:transparent; border:none; color:var(--acc); padding:6px 10px; font-size:16px; cursor:pointer;" onclick="edit(${i})"><i class="fa fa-pen"></i></button> <button style="background:transparent; border:none; color:var(--neg); padding:6px 10px; font-size:16px; cursor:pointer;" onclick="del('tx',${i})"><i class="fa fa-trash"></i></button></td></tr>`).join('')}</tbody></table>`:'<p class=mut style="margin:0;">Henüz kayıt yok.</p>'}
+        <div style="margin-bottom:12px; position:relative;">
+          <input id="tx-search-inp" type="search" value="${esc(tf.q)}" oninput="setTxSearch(this.value)" placeholder="İşlemlerde ara (not, kategori, kişi, kart, tutar)..." style="width:100%; padding:10px 14px; border-radius:12px; border:1px solid var(--line); font-size:13px; background:#FFF;">
+        </div>
+        ${list.length?`<table style="width:100%; font-size:13px; text-align:left; border-collapse:collapse;">
+        <thead><tr style="border-bottom:2px solid var(--line);">${thSort('Tarih','date')}${thSort('Kategori / Not','cat')}${thSort('Kişi','who')}${thSort('Ödeme','pay')}${thSort('Tutar','amt','right')}<th></th></tr></thead>
+        <tbody>${list.map(({t,i})=>`<tr style="border-bottom:1px solid var(--line);">
+          <td style="padding:12px 6px; white-space:nowrap;">${t.date.slice(8)}.${t.date.slice(5,7)}</td>
+          <td style="padding:12px 6px;"><b>${esc(cn(t.cat))}</b>${t.note?`<div class=mut style="font-size:11px;">${esc(t.note)}</div>`:''}</td>
+          <td style="padding:12px 6px;">${t.type==='in'?'':esc(wn(t.who))}</td>
+          <td class=mut style="padding:12px 6px; font-size:11px;">${esc(pn(t.pay))}${t.inst>1?' · '+t.inst+' taksit':''}</td>
+          <td class="${t.type==='in'?'pos':'ink'}" style="padding:12px 6px; font-weight:700; text-align:right; white-space:nowrap;">${t.type==='in'?'+':''}${TL(t.amt)}</td>
+          <td style="padding:12px 6px; text-align:right; white-space:nowrap;"><button style="background:transparent; border:none; color:var(--acc); padding:6px 10px; font-size:16px; cursor:pointer;" onclick="edit(${i})"><i class="fa fa-pen"></i></button> <button style="background:transparent; border:none; color:var(--neg); padding:6px 10px; font-size:16px; cursor:pointer;" onclick="del('tx',${i})"><i class="fa fa-trash"></i></button></td>
+        </tr>`).join('')}</tbody></table>`:`<p class=mut style="margin:0;">${q?'Aramanızla eşleşen kayıt bulunamadı.':'Henüz kayıt yok.'}</p>`}
     </div>
  </details>
- </div>`}
+ </div>`;
+}
 
-function vHarc(){const M=S.m,c=calc(M),it=c.items,tsp=c.spend,pc=a=>tsp?'%'+Math.round(a/tsp*100):'-',cats=CL().filter(k=>it.some(i=>i.cat===k.id));
+function vHarc(){
+ const M=S.m,c=calc(M),it=c.items,tsp=c.spend,pc=a=>tsp?'%'+Math.round(a/tsp*100):'-',cats=CL().filter(k=>it.some(i=>i.cat===k.id));
  const tot=k=>sum(it.filter(i=>i.cat===k).map(i=>i.a)),mx=Math.max(1,...cats.map(k=>tot(k.id))),who=w=>sum(it.filter(i=>i.who===w).map(i=>i.a));
+ const dr=window.harcDrill;
+
+ let drillHtml='';
+ if(dr){
+  const matched=it.filter(i=>(dr.cat==='ALL'||i.cat===dr.cat)&&(dr.who==='ALL'||i.who===dr.who));
+  const titleParts=[dr.cat==='ALL'?'Tüm Kategoriler':cn(dr.cat), dr.who==='ALL'?'Tüm Aile':wn(dr.who)];
+  drillHtml=`<div style="margin-top:16px; padding:16px; background:#F8FAFC; border:1px solid var(--acc); border-radius:14px;">
+   <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+    <b style="font-size:14px; color:var(--ink);">${esc(titleParts.join(' · '))} (${matched.length} kalem — ${TL(sum(matched.map(x=>x.a)))})</b>
+    <button class=b style="padding:4px 10px; font-size:12px;" onclick="window.harcDrill=null;render()">Kapat ✕</button>
+   </div>
+   ${matched.length?`<table style="width:100%; font-size:13px; border-collapse:collapse;"><tbody>${matched.map(m=>`<tr style="border-bottom:1px solid var(--line);">
+    <td style="padding:8px 4px; white-space:nowrap;">${m.date?m.date.slice(8)+'.'+m.date.slice(5,7):ml(M)}</td>
+    <td style="padding:8px 4px;"><b>${esc(cn(m.cat))}</b>${m.note?' · '+esc(m.note):''}</td>
+    <td class=mut style="padding:8px 4px; font-size:12px;">${esc(wn(m.who))}</td>
+    <td class=mut style="padding:8px 4px; font-size:12px;">${m.pay?esc(pn(m.pay)):'Sabit/Yıllık'}${m.inst>1?' ('+m.inst+' taksit)':''}</td>
+    <td style="padding:8px 4px; text-align:right; font-weight:700; white-space:nowrap;">${TL(m.a)}</td>
+   </tr>`).join('')}</tbody></table>`:'<p class=mut style="margin:0;">Kayıt bulunamadı.</p>'}
+  </div>`;
+ }
+
+ const isSel=(cat,w)=>dr&&dr.cat===cat&&dr.who===w?' sel':'';
+
  return `<div class=sec>${mpick()}<h2>Ne nereye gidiyor (${ml(M)})</h2>
- <p class=mut>Alışverişi yaptığın ayda tam tutarla sayılır, taksitli olsa da. Yuvarlak tahmini rakamlar burada olabilir. Hesaptan çıkan net ödemeler Ödemeler sekmesinde.</p>
+ <p class=mut>Tablodaki tutarlara tıklayarak o kalemin detaylı dökümünü görebilirsin. Alışverişi yaptığın ayda tam tutarla sayılır.</p>
  <div style="max-width:320px; margin: 20px auto; display: ${cats.length ? 'block' : 'none'}"><canvas id="harcamaGrafigi"></canvas></div>
  ${cats.length?`<div class=wrap><table><thead><tr><th>Kategori</th>${PL().map(p=>`<th>${esc(p.name)}</th>`).join('')}<th>Toplam</th><th>Pay</th><th style="width:120px"></th></tr></thead><tbody>
- ${cats.map(k=>`<tr><td>${esc(k.name)}</td>${PL().map(p=>{const a=sum(it.filter(i=>i.cat===k.id&&i.who===p.id).map(i=>i.a));return `<td>${a?TL(a):'<span class=mut>-</span>'}</td>`}).join('')}<td><b>${TL(tot(k.id))}</b></td><td class=mut>${pc(tot(k.id))}</td><td><div class=bar style="width:${tot(k.id)/mx*100}%"></div></td></tr>`).join('')}</tbody>
- <tfoot><tr><td>Toplam</td>${PL().map(p=>`<td>${TL(who(p.id))}</td>`).join('')}<td>${TL(tsp)}</td><td>${tsp?'%100':''}</td><td></td></tr><tr class=mut><td>Pay</td>${PL().map(p=>`<td>${pc(who(p.id))}</td>`).join('')}<td></td><td></td><td></td></tr></tfoot></table></div>${notesHtml(noteHarc(M,c))}`:'<p class=mut>Bu ay için kayıt yok. Ekle sekmesinden harcama gir.</p>'}</div>`}
+ ${cats.map(k=>`<tr><td>${esc(k.name)}</td>${PL().map(p=>{const a=sum(it.filter(i=>i.cat===k.id&&i.who===p.id).map(i=>i.a));return a?`<td class="mx-cell${isSel(k.id,p.id)}" onclick="toggleHarcDrill('${k.id}','${p.id}')">${TL(a)}</td>`:`<td><span class=mut>-</span></td>`}).join('')}<td class="mx-cell${isSel(k.id,'ALL')}" onclick="toggleHarcDrill('${k.id}','ALL')"><b>${TL(tot(k.id))}</b></td><td class=mut>${pc(tot(k.id))}</td><td><div class=bar style="width:${tot(k.id)/mx*100}%"></div></td></tr>`).join('')}</tbody>
+ <tfoot><tr><td>Toplam</td>${PL().map(p=>{const a=who(p.id);return a?`<td class="mx-cell${isSel('ALL',p.id)}" onclick="toggleHarcDrill('ALL','${p.id}')">${TL(a)}</td>`:`<td>${TL(0)}</td>`}).join('')}<td class="mx-cell${isSel('ALL','ALL')}" onclick="toggleHarcDrill('ALL','ALL')">${TL(tsp)}</td><td>${tsp?'%100':''}</td><td></td></tr><tr class=mut><td>Pay</td>${PL().map(p=>`<td>${pc(who(p.id))}</td>`).join('')}<td></td><td></td><td></td></tr></tfoot></table></div>${drillHtml}${notesHtml(noteHarc(M,c))}`:'<p class=mut>Bu ay için kayıt yok. Ekle sekmesinden harcama gir.</p>'}</div>`;
+}
 
 const A=o=>o&&o.acct&&S.accts.some(a=>a.id===o.acct)?o.acct:S.defAcct;
 const aName=id=>{const a=S.accts.find(x=>x.id===id);return a?a.name:''};
