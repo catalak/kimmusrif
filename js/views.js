@@ -218,7 +218,7 @@ const hesapSec=()=>{const ends=S.accts.map(a=>({a,e:balEnd(a,nowM())}));return `
  ${S.assets.map((d,i)=>{const tl=!d.tur||d.tur==='TL';return `<div class=row><input style="flex:2;min-width:140px" value="${esc(d.name)}" onchange="U('assets',${i},'name',this.value,1)"><select style="width:120px" onchange="U('assets',${i},'tur',this.value,1)">${['TL','Dolar','Euro','Gram altın'].map(t=>`<option${(d.tur||'TL')===t?' selected':''}>${t}</option>`).join('')}</select><input type=number step=any style="width:110px" placeholder="Miktar" value="${d.miktar||''}" onchange="U('assets',${i},'miktar',this.value,1)">${tl?'':`<input type=number step=any style="width:110px" placeholder="Kur (₺)" value="${d.kur||''}" onchange="U('assets',${i},'kur',this.value,1)">`}<span class=mut>= ${TL(dTL(d))}</span><button class=b onclick="del('assets',${i})">Sil</button></div>`}).join('')}
  <button class=b onclick="S.assets.push({name:'Yeni varlık',tur:'Gram altın',miktar:0,kur:0});save();render()">Varlık ekle</button></div>`};
 const depoSec=()=>{
- const isGuest = typeof currentUserUID === 'undefined' || !currentUserUID || currentUserUID === 'misafir_kullanici';
+ const isGuest = typeof currentUserUID === 'undefined' || !currentUserUID || currentUserUID === 'misafir_kullanici' || currentUserUID === 'demo_kullanici';
  if(isGuest) return '';
  return `<div class=sec><h2>Veri depolama</h2>
  <div style="display:flex;flex-direction:column;gap:10px;margin-top:12px;">
@@ -234,6 +234,14 @@ const depoSec=()=>{
  }).join('')}
  </div></div>`;
 };
+const yedekSec=()=>{
+ if(typeof isDemoMode !== 'undefined' && isDemoMode) return '';
+ return `<div class=sec><h2>Yedek</h2><p class=mut>Bütün verini bir dosya olarak indirebilirsin. Yeni sürüme geçerken ya da bir şey ters giderse aynı dosyayı geri yüklersin.</p>
+ <div class=row><button class="b p" onclick="bkSave()">Yedeği dosya olarak indir (.txt)</button><label class=b style="cursor:pointer;font-size:15px">Yedek dosyasından yükle<input type=file accept=".txt,.json,text/plain" style="display:none" onchange="bkFile(this.files[0])"></label></div>
+ <details style="margin-top:10px"><summary class=mut style="cursor:pointer">Metin olarak göster ya da yapıştır</summary><div class=row style="margin-top:8px"><button class=b onclick="bk()">Yedeği göster</button><button class=b onclick="bkCopy()">Panoya kopyala</button></div>
+ <textarea id=bkt rows=6 style="width:100%;font:12px monospace;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:5px;padding:8px" placeholder="Yedek metni burada görünür. Yüklemek için yedeği buraya yapıştır."></textarea>
+ <div class=row style="margin-top:8px"><button class=b onclick="bkLoad()">Yapıştırılan yedeği yükle</button></div></details></div>`;
+};
 
 async function useStore(k){try{await Store.switchTo(k);stat('Depo değiştirildi: '+Store.label());render()}catch(e){stat('Depo değiştirilemedi')}}
 function vAyar(){return `<div class=sec><h2>Kişiler</h2><p class=mut>Harcamanın kime ait olduğunu bu liste belirler. Adı değiştirirsen eski kayıtlar da yeni adla görünür. Birini silersen kayıtları Tüm aile’ye aktarılır.</p>
@@ -247,16 +255,64 @@ function vAyar(){return `<div class=sec><h2>Kişiler</h2><p class=mut>Harcamanı
  ${S.cards.map((c,i)=>`<div class=row><input style="flex:1;min-width:160px" value="${esc(c.name)}" onchange="U('cards',${i},'name',this.value,1)"><input type=number min=1 max=31 style="width:170px" title="Son ödeme günü" placeholder="Son ödeme günü" value="${c.due||''}" onchange="U('cards',${i},'due',this.value)"><button class=b style="width:64px" onclick="kDel('${c.id}')">Sil</button></div>`).join('')}
  <button class=b onclick="kAdd()">Kart ekle</button></div>
  ${depoSec()}
- <div class=sec><h2>Yedek</h2><p class=mut>Bütün verini bir dosya olarak indirebilirsin. Yeni sürüme geçerken ya da bir şey ters giderse aynı dosyayı geri yüklersin.</p>
- <div class=row><button class="b p" onclick="bkSave()">Yedeği dosya olarak indir (.txt)</button><label class=b style="cursor:pointer;font-size:15px">Yedek dosyasından yükle<input type=file accept=".txt,.json,text/plain" style="display:none" onchange="bkFile(this.files[0])"></label><button class="b" onclick="if(confirm('Mevcut yerel verilerin yerine örnek aile profili yüklensin mi?')){S=mig(demoData());save();render();stat('Örnek aile profili yüklendi')}">Örnek Aile Profilini Yükle</button></div>
- <details style="margin-top:10px"><summary class=mut style="cursor:pointer">Metin olarak göster ya da yapıştır</summary><div class=row style="margin-top:8px"><button class=b onclick="bk()">Yedeği göster</button><button class=b onclick="bkCopy()">Panoya kopyala</button></div>
- <textarea id=bkt rows=6 style="width:100%;font:12px monospace;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:5px;padding:8px" placeholder="Yedek metni burada görünür. Yüklemek için yedeği buraya yapıştır."></textarea>
- <div class=row style="margin-top:8px"><button class=b onclick="bkLoad()">Yapıştırılan yedeği yükle</button></div></details></div>`}
+ ${yedekSec()}`}
+
 function vSabit(){return `<div class=sec><h2>Her ay tekrarlayan giderler</h2><p class=mut>Kira, aidat, kurs gibi. Her ay otomatik gelir, tekrar girmezsin. Ayın kaçında ödendiğini Gün kutusuna yaz, Ödemeler sekmesinde o güne göre sıralanır. Zam gelince Zam düğmesine bas: satır kopyalanır, eskisi bu ay biter, yenisi gelecek aydan başlar, sonra yeni tutarı düzeltirsin. Başlangıç ve bitiş ayını satırın altındaki ayrıntıdan değiştirebilirsin.</p>${lst('fixed')}</div>
  <div class=sec><h2>Yılda bir gelen giderler</h2><p class=mut>MTV, DASK, emlak vergisi, gelir vergisi gibi. Seçtiğin ay ve günde ödenir, her yıl kendiliğinden gelir. Kartla ve taksitle ödersen ekstreye ve sonraki aylara da yansır, bu yüzden Ekle sekmesine ayrıca girme. Tutar değişince buradan güncelle. Özet’te aylık karşılığı hesaplanır.</p><div class=row><button class=b onclick="S.yy=YY()-1;save();render()">‹</button><b>${YY()}</b><button class=b onclick="S.yy=YY()+1;save();render()">›</button><span class=mut>Tutarlar bu yıl için gösterilir ve girilir. Başka bir yıla geçip tutarı değiştirirsen önceki yıllar olduğu gibi kalır.</span></div>
  ${lst('yearly',1)}</div>`}
 
-function vProj(){const s0=nowM(),rows=[],oth=sum(S.assets.map(dTL)),lns=S.debts.filter(d=>d.kind==='kredi'&&d.pay>0),bl=S.debts.filter(d=>d.kind!=='kredi');
+function vProj(){
+ const s0=nowM(),rows=[],oth=sum(S.assets.map(dTL)),lns=S.debts.filter(d=>d.kind==='kredi'&&d.pay>0),bl=S.debts.filter(d=>d.kind!=='kredi');
+ const nrem=(d,k)=>d.end?Math.max(0,ymk(d.end)-k):0;
+ const kart=k=>sum(S.stmts.filter(x=>x.amt>0).map(x=>mkd(x.dt)>k?x.amt:Math.max(0,x.amt-(sPaid(x)||x.amt))));
+ const debt=k=>sum(lns.map(d=>d.pay*nrem(d,k)))+sum(bl.map(dTL))+kart(k);
+ const longD=k=>sum(lns.map(d=>d.pay*Math.max(0,nrem(d,k)-12)))+sum(bl.filter(d=>d.uz).map(dTL));
+
+ // Geçmiş 3 ayın ortalama kart harcaması (kesilmiş ekstre veya kart harcamaları)
+ const pastCards=[s0-3,s0-2,s0-1].map(m=>{
+  const st=sum(S.stmts.filter(x=>mkd(x.dt)===m&&x.amt>0).map(x=>x.amt));
+  if(st>0) return st;
+  return sum(S.cards.map(cd=>cardEst(cd,m)));
+ }).filter(v=>v>0);
+ const avgCard=pastCards.length?Math.round(sum(pastCards)/pastCards.length):Math.round(calc(s0).est);
+
+ let ti=0,tk=0,te=0,cumEst=0;
+ for(let k=s0;k<s0+12;k++){
+  const c=calc(k);
+  const hasStmt=S.cards.length>0&&S.cards.every(cd=>S.stmts.some(x=>x.card===cd.id&&mkd(x.dt)===k&&x.amt>0));
+  const estCard=(k>s0&&!hasStmt)?Math.max(c.est,avgCard):c.est;
+  cumEst+=estCard;
+  const nb=sum(S.accts.map(a=>balEnd(a,k)))-cumEst;
+  const db=debt(k);
+  ti+=c.inc;tk+=c.cash;te+=estCard;
+  rows.push({k,inc:c.inc,kes:c.cash,est:estCard,net:c.inc-c.cash-estCard,nb,db,nv:nb+oth-db});
+ }
+
+ const f=rows[0],l=rows[11],tn=ti-(tk+te),low=rows.reduce((a,b)=>b.nb<a.nb?b:a),dd=f.db-l.db,dn=l.nv-f.nv,sg=v=>(v>=0?'+':'−')+TL(Math.abs(v)),nt=[];
+ nt.push(`Önümüzdeki 12 ayda ${TL(ti)} gelir, ${TL(tk)} kesinleşmiş ödeme ve ${TL(te)} tahmini kart harcaması görünüyor. Net fark yaklaşık ${TL(Math.abs(tn))} ${tn>=0?'artı':'eksi'}.`);
+ nt.push(`Hesaplarındaki toplam nakit bu ay sonu yaklaşık ${TL(f.nb)}, 12 ay sonunda ${TL(l.nb)} olması bekleniyor.`);
+ if(f.db>0)nt.push(dd>0?`Toplam borç (faiz hariç) ${TL(f.db)} seviyesinden ${TL(l.db)} seviyesine iniyor, yani 12 ayda yaklaşık ${TL(dd)} eriyor.${longD(s0+11)>0?` Kalan borcun ${TL(longD(s0+11))} kadarı 12 aydan sonraya uzanan uzun vadeli kısım.`:''}`:`Toplam borç (faiz hariç) ${TL(f.db)} civarında, bu dönemde azalmıyor görünüyor.`);
+ nt.push(`Net varlığın ${TL(f.nv)} seviyesinden ${TL(l.nv)} seviyesine ${dn>=0?'çıkıyor':'düşüyor'} (${sg(dn)}).`);
+ if(low.nb<0)nt.push(`${ml(low.k)} ayında hesaplarındaki toplam nakit eksiye (${TL(low.nb)}) düşüyor görünüyor. Maaş ya da ek gelir günlerini, o aydaki büyük ödemeleri bir kontrol etmek iyi olur.`);
+ else nt.push(`Nakit en düşük ${ml(low.k)} ayında (${TL(low.nb)}).`);
+ if(avgCard>0)nt.push(`Ekstresi henüz kesilmemiş gelecek aylar için son 3 ay ortalaması baz alınarak aylık ~${TL(avgCard)} kart ödemesi hesaba dahil edildi. Ekstre kesimi girildiğinde o ayın tahmini kalkar ve gerçek tutar geçerli olur.`);
+
+ const cl=v=>v<0?' class=neg':'',st='style="font-size:19px"';
+ const vi=[...S.accts.map(a=>[a.name,balEnd(a,s0),balEnd(a,s0+11)]),...S.assets.map(a=>[a.name,dTL(a),dTL(a)])];
+ const bi=[...(kart(s0)||kart(s0+11)?[['Kart ekstreleri',kart(s0),kart(s0+11)]]:[]),...lns.map(d=>[d.name,d.pay*nrem(d,s0),d.pay*nrem(d,s0+11)]),...bl.map(d=>[d.name+(d.uz?' (uzun vadeli)':''),dTL(d),dTL(d)])];
+ const tt=(a,j)=>sum(a.map(x=>x[j])),t2=(ti2,it)=>`<div><h3 style="margin-top:0">${ti2}</h3><table><thead><tr><th></th><th>Bu ay sonu</th><th>12 ay sonu</th></tr></thead><tbody>${it.map(x=>`<tr><td>${esc(x[0])}</td><td>${TL(x[1])}</td><td>${TL(x[2])}</td></tr>`).join('')||'<tr><td class=mut>Henüz yok</td><td></td><td></td></tr>'}</tbody><tfoot><tr><td>Toplam</td><td>${TL(tt(it,1))}</td><td>${TL(tt(it,2))}</td></tr></tfoot></table></div>`;
+ const uz0=longD(s0);
+
+ return `<div class=sec><h2>Önümüzdeki 12 ay (${ml(s0)} – ${ml(s0+11)})</h2>
+ <div class=stats><div><span>Gelir (12 ay)</span><b>${TL(ti)}</b></div><div><span>Kesin + Tahmini Kart</span><b>${TL(tk+te)}</b></div><div><span>Kâr / zarar</span><b class="${tn<0?'neg':'pos'}">${sg(tn)}</b></div></div>
+ <div class=stats style="margin-top:18px"><div><span>Nakit: bu ay sonu → 12 ay sonu</span><b ${st}>${TL(f.nb)} → ${TL(l.nb)}</b></div><div><span>Borç: bu ay sonu → 12 ay sonu</span><b ${st}>${TL(f.db)} → ${TL(l.db)}</b></div><div><span>Net varlık değişimi (12 ay)</span><b ${st} class="${dn<0?'neg':'pos'}">${sg(dn)}</b></div></div>
+ ${notesHtml(nt)}</div>
+ <div class=sec><div class=wrap><table class=sm><thead><tr><th>Ay</th><th>Gelir</th><th>Kesin ödemeler</th><th>Tahmini kart</th><th>Net</th><th>Nakit (ay sonu)</th><th>Borç (ay sonu)</th><th>Net varlık</th></tr></thead><tbody>
+ ${rows.map(r=>`<tr><td>${ml(r.k)}</td><td>${TL(r.inc)}</td><td>${TL(r.kes)}</td><td class=mut>${r.est>0.5?'~'+TL(r.est):'-'}</td><td${cl(r.net)}><b>${TL(r.net)}</b></td><td${cl(r.nb)}>${TL(r.nb)}</td><td>${TL(r.db)}</td><td${cl(r.nv)}>${TL(r.nv)}</td></tr>`).join('')}</tbody>
+ <tfoot><tr><td>Toplam</td><td>${TL(ti)}</td><td>${TL(tk)}</td><td class=mut>${te>0.5?'~'+TL(te):'-'}</td><td${cl(tn)}>${TL(tn)}</td><td></td><td></td><td></td></tr></tfoot></table></div>
+ <p class=mut style="margin-top:10px">Net = gelir − (kesin ödemeler + tahmini kart). Ekstresi kesilmemiş aylarda son 3 ayın kart ortalaması (~${TL(avgCard)}) tahmini kart sütununa yansıtılır; ekstre girildiğinde tahmini değer sıfırlanıp kesin ödemelere geçer.</p></div>
+ <div class=sec><div class=grid style="grid-template-columns:repeat(auto-fit,minmax(320px,1fr));align-items:start;gap:24px">${t2('Varlıklarım',vi)}${t2('Borçlarım',bi)}</div><p class=mut style="margin-top:10px">Borçların şu anki dağılımı: kısa vadeli (12 ay içinde ödenecek) ${TL(tt(bi,1)-uz0)}, uzun vadeli ${TL(uz0)}. Hesapları, altın ve dövizi Ayarlar sekmesinden düzenlersin.</p></div>`;
+}
  const nrem=(d,k)=>d.end?Math.max(0,ymk(d.end)-k):0;
  const kart=k=>sum(S.stmts.filter(x=>x.amt>0).map(x=>mkd(x.dt)>k?x.amt:Math.max(0,x.amt-(sPaid(x)||x.amt))));
  const debt=k=>sum(lns.map(d=>d.pay*nrem(d,k)))+sum(bl.map(dTL))+kart(k);

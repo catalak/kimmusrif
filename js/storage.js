@@ -26,8 +26,8 @@ const Store = (() => {
       name: 'Firebase (Bulut)', ready: true,
       db: null, docRef: null, currentDocId: null,
       async init(uid, familyCode=null) {
-        if (!uid || uid === 'misafir_kullanici') {
-          throw new Error('Misafir modunda bulut depolama kullanılamaz.');
+        if (!uid || uid === 'misafir_kullanici' || uid === 'demo_kullanici') {
+          throw new Error('Misafir/Demo modunda bulut depolama kullanılamaz.');
         }
         const targetDocId = familyCode || uid;
         if (this.db && this.currentDocId === targetDocId) return;
@@ -80,7 +80,7 @@ const Store = (() => {
     label() { return adapters[active].name },
     load(uid, fc) { return Promise.resolve(adapters[active].load(uid, fc)) },
     save(state, uid, fc) { return Promise.resolve(adapters[active].save(state, uid, fc)) },
-    async switchTo(name, uid=null, fc=null) {
+    async switchTo(name, uid=null, fc=null, copyData=true) {
       const to = adapters[name];
       if (!to || !to.ready) throw new Error('Depo hazır değil');
       if (name === active) return;
@@ -94,12 +94,14 @@ const Store = (() => {
       const currentUid = uid || (typeof currentUserUID !== 'undefined' ? currentUserUID : null);
       const currentFc = fc || (typeof familyCode !== 'undefined' ? familyCode : null);
 
-      if (name === 'firebase' && (!currentUid || currentUid === 'misafir_kullanici')) {
+      if (name === 'firebase' && (!currentUid || currentUid === 'misafir_kullanici' || currentUid === 'demo_kullanici')) {
         throw new Error('Bulut depolama için Google ile giriş yapmalısınız.');
       }
 
-      const data = await adapters[active].load(currentUid, currentFc);
-      if (data) await to.save(data, currentUid, currentFc);
+      if (copyData) {
+        const data = await adapters[active].load(currentUid, currentFc);
+        if (data) await to.save(data, currentUid, currentFc);
+      }
       active = name;
       try { localStorage.setItem(AKEY, name) } catch (e) {}
     }

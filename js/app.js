@@ -1,5 +1,6 @@
 document.body.style.touchAction = 'manipulation';
 let currentUserUID = null;
+let isDemoMode = false;
 let familyCode = localStorage.getItem('kimmusrif_familyCode') || null;
 let authModule = null;
 let authInstance = null;
@@ -33,7 +34,7 @@ function initShell() {
                 <button onclick="toggleMenu(false)" style="background:transparent;border:none;font-size:20px;color:var(--mut);cursor:pointer; touch-action: manipulation;"><i class="fa fa-times"></i></button>
             </div>
             <div id="drawer-menu-items" style="flex:1; overflow-y:auto; padding: 10px 0;"></div>
-            <div style="padding:16px 20px 24px 20px;border-top:1px solid var(--line);background:#F8FAFC;">
+            <div id="drawer-family-box" style="padding:16px 20px 24px 20px;border-top:1px solid var(--line);background:#F8FAFC;">
                 <p style="font-size:11px;color:var(--mut);margin:0 0 10px 0;text-transform:uppercase;font-weight:800;letter-spacing:0.5px;">Ortak Kasa <span id="family-status"></span></p>
                 <button onclick="showFamilyCode()" style="background:#FFF;border:1px solid var(--line);padding:12px;border-radius:14px;width:100%;text-align:center;font-weight:700;font-size:13px;color:var(--ink);cursor:pointer;margin-bottom:8px;box-shadow:0 2px 4px rgba(0,0,0,0.02); touch-action: manipulation;"><i class="fa fa-share-alt" style="margin-right:6px;"></i>Kodu Paylaş</button>
                 <button id="btn-family-action" onclick="joinFamily()" style="background:#FFF;border:1px solid var(--line);padding:12px;border-radius:14px;width:100%;text-align:center;font-weight:700;font-size:13px;cursor:pointer;box-shadow:0 2px 4px rgba(0,0,0,0.02); touch-action: manipulation;"></button>
@@ -63,6 +64,8 @@ function initShell() {
     document.getElementById('btn-logout-header').onclick = () => { 
         if(authModule && authInstance) authModule.signOut(authInstance); 
         currentUserUID = null;
+        isDemoMode = false;
+        S = mig(def());
         document.getElementById('login-screen').style.display = 'flex';
         document.getElementById('app-container').style.display = 'none';
     };
@@ -90,7 +93,6 @@ window.renderModalContent = function() {
     }
 }
 
-// Add/Edit tetikleyicilerini Modal'a bağla
 const existingAdd = window.add;
 if(existingAdd) {
     window.add = function() {
@@ -106,7 +108,6 @@ if(existingEdit) {
     };
 }
 
-// Pürüzsüz Menü Açılışı
 window.toggleMenu = function(state) {
   const drawerEl = document.getElementById('main-drawer');
   const overlayEl = document.getElementById('main-overlay');
@@ -147,7 +148,6 @@ function showFamilyCode() {
   if(code) prompt("Eşinizin veya ailenizin bütçenize ortak olması için bu kodu kopyalayıp ona gönderin:", code);
 }
 
-// Sadece aktif sekmeyi ve buton renklerini değiştiren fonksiyon
 function renderShellState() {
     const sideMenu = [
         {t:'Harcamalar', i:'fa-receipt', v:2},
@@ -171,6 +171,12 @@ function renderShellState() {
 
     document.getElementById('fab-container').style.display = (tab !== 0 && tab !== undefined) ? 'block' : 'none';
 
+    // Ortak kasa kutusunu sadece gerçek Google girişi yapanlarda göster
+    const famBox = document.getElementById('drawer-family-box');
+    if (famBox) {
+        famBox.style.display = (!isDemoMode && currentUserUID && currentUserUID !== 'misafir_kullanici') ? 'block' : 'none';
+    }
+
     document.getElementById('family-status').innerText = familyCode ? '(Aktif)' : '(Kapalı)';
     const btnFam = document.getElementById('btn-family-action');
     if (familyCode) {
@@ -181,7 +187,9 @@ function renderShellState() {
         btnFam.style.color = 'var(--acc)';
     }
 
-    document.getElementById('save-indicator').innerHTML = ST === 'Kaydedildi' ? '<i class="fa fa-check-circle" style="color:var(--pos);font-size:18px;animation: popIn 0.3s ease-out;"></i>' : '';
+    document.getElementById('save-indicator').innerHTML = isDemoMode
+        ? '<span style="font-size:11px;background:#EFF6FF;color:#1D4ED8;padding:3px 8px;border-radius:8px;font-weight:700;">DEMO</span>'
+        : (ST === 'Kaydedildi' ? '<i class="fa fa-check-circle" style="color:var(--pos);font-size:18px;animation: popIn 0.3s ease-out;"></i>' : '');
     
     document.getElementById('pwa-banner-container').innerHTML = pwaPromptEvent ? `
     <div style="background:var(--acc);color:white;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;border-radius:12px;margin:16px;box-shadow:0 4px 12px rgba(59,130,246,0.3);">
@@ -196,7 +204,6 @@ function renderShellState() {
     </div>` : '';
 }
 
-// MODERN UI GRAFİK ÇİZİM MOTORU
 window.chartHarcama = null;
 window.chartKisi = null;
 
@@ -209,7 +216,6 @@ window.cizGrafikler = function(deneme = 0) {
 
     const M = S.m, c = calc(M);
     
-    // 1. Kategori Grafiği
     const ctxHarc = document.getElementById('harcamaGrafigi');
     if (ctxHarc) {
         if (window.chartHarcama && typeof window.chartHarcama.destroy === 'function') {
@@ -292,7 +298,6 @@ window.cizGrafikler = function(deneme = 0) {
         }
     }
 
-    // 2. Kişi Grafiği (Özet Sekmesi)
     const ctxKisi = document.getElementById('kisiGrafigi');
     if (ctxKisi) {
         if (window.chartKisi && typeof window.chartKisi.destroy === 'function') {
@@ -402,7 +407,6 @@ window.cizGrafikler = function(deneme = 0) {
     }
 };
 
-// Ana Render 
 function render(){
     initShell();
 
@@ -424,7 +428,7 @@ function render(){
 }
 
 window.addEventListener('ortakVeriGuncellendi', (e) => {
-  if (e.detail) { Object.assign(S, e.detail); render(); }
+  if (!isDemoMode && e.detail) { Object.assign(S, e.detail); render(); }
 });
 
 async function initAuth() {
@@ -442,10 +446,11 @@ async function initAuth() {
   authInstance = authModule.getAuth(app);
   const provider = new authModule.GoogleAuthProvider();
 
-  // 1. Google ile Giriş Yap
+  // 1. Google ile Giriş Yap (Tamamen bulut izole)
   const loginBtn = document.getElementById('btn-google-login');
   if(loginBtn) {
     loginBtn.addEventListener('click', () => {
+      isDemoMode = false;
       authModule.signInWithPopup(authInstance, provider).catch(err => {
         const errDiv = document.getElementById('login-error');
         if(errDiv) errDiv.style.display = 'block';
@@ -453,10 +458,11 @@ async function initAuth() {
     });
   }
 
-  // 2. Üye Olmadan Devam Et (Kişisel Yerel Alan)
+  // 2. Üye Olmadan Devam Et (Tamamen yerel izole, kendi tarayıcısına yazar)
   const guestBtn = document.getElementById('btn-guest-login');
   if(guestBtn) {
     guestBtn.onclick = async () => {
+        isDemoMode = false;
         currentUserUID = 'misafir_kullanici';
         familyCode = null;
         await Store.switchTo('local');
@@ -469,13 +475,13 @@ async function initAuth() {
     };
   }
 
-  // 3. Örnek Profili İncele (Kerem & Zeynep Ailesi - Demo)
+  // 3. Örnek Profili İncele (Sadece RAM'de çalışır, hiçbir yere KAYDETMEZ)
   const demoBtn = document.getElementById('btn-demo-login');
   if(demoBtn) {
-    demoBtn.onclick = async () => {
-        currentUserUID = 'misafir_kullanici';
+    demoBtn.onclick = () => {
+        isDemoMode = true;
+        currentUserUID = 'demo_kullanici';
         familyCode = null;
-        await Store.switchTo('local');
         const M = nowM();
         const dt = (m, d) => { const y = Math.floor(m/12), mo = m%12; return y + '-' + String(mo+1).padStart(2,'0') + '-' + String(Math.min(d,28)).padStart(2,'0'); };
         const inc = {};
@@ -533,7 +539,6 @@ async function initAuth() {
           ]
         };
         S = mig(dData);
-        await Store.save(S);
         tab = 1;
         document.getElementById('login-screen').style.display = 'none';
         document.getElementById('app-container').style.display = 'block';
@@ -543,28 +548,28 @@ async function initAuth() {
 
   authModule.onAuthStateChanged(authInstance, async (user) => {
     if (user) {
+      isDemoMode = false;
       currentUserUID = user.uid;
       document.getElementById('login-screen').style.display = 'none';
       document.getElementById('app-container').style.display = 'block';
       
+      await Store.switchTo('firebase', currentUserUID, familyCode, false);
       const d = await Store.load(currentUserUID, familyCode);
       S = mig(Object.assign(def(), d || {}));
       tab = 1;
-      
-      if(Store.active !== 'firebase') {
-          try { await Store.switchTo('firebase', currentUserUID, familyCode); } catch(e){}
-      }
       render();
     } else {
+      isDemoMode = false;
       currentUserUID = null;
+      S = mig(def());
       document.getElementById('login-screen').style.display = 'flex';
       document.getElementById('app-container').style.display = 'none';
     }
   });
 }
 
-const originalSave = save;
 window.save = function() {
+   if(isDemoMode) { render(); return; } // Demo modunda hiçbir yere kaydetme!
    if(currentUserUID === 'misafir_kullanici' && Store.active === 'firebase') Store.switchTo('local');
    if(Store.active === 'firebase' && !currentUserUID) return; 
    Store.save(S, currentUserUID, familyCode);
