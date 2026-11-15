@@ -176,7 +176,6 @@ const dTL=d=>(!d.tur||d.tur==='TL')?(d.miktar!==undefined?d.miktar:(d.balance||0
 const loanN=d=>d.end?Math.max(0,ymk(d.end)-nowM()+1):0;
 function lsetLeft(i,v){const n=Math.max(0,parseInt(v)||0);S.debts[i].end=n?ikey(nowM()+n-1):'';save();render()}
 
-// Taşmayan 2 Satırlı Kompakt Kart Düzeni (Sabitler ve Yıllık Giderler)
 function lst(k,ym){return `${S[k].map((f,i)=>`
  <div class=cardbox style="padding:14px; margin-bottom:12px;">
   <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
@@ -268,7 +267,6 @@ function vProj(){
  const debt=k=>sum(lns.map(d=>d.pay*nrem(d,k)))+sum(bl.map(dTL))+kart(k);
  const longD=k=>sum(lns.map(d=>d.pay*Math.max(0,nrem(d,k)-12)))+sum(bl.filter(d=>d.uz).map(dTL));
 
- // Geçmiş 3 ayın ortalama kart harcaması (kesilmiş ekstre veya kart harcamaları)
  const pastCards=[s0-3,s0-2,s0-1].map(m=>{
   const st=sum(S.stmts.filter(x=>mkd(x.dt)===m&&x.amt>0).map(x=>x.amt));
   if(st>0) return st;
@@ -313,34 +311,6 @@ function vProj(){
  <p class=mut style="margin-top:10px">Net = gelir − (kesin ödemeler + tahmini kart). Ekstresi kesilmemiş aylarda son 3 ayın kart ortalaması (~${TL(avgCard)}) tahmini kart sütununa yansıtılır; ekstre girildiğinde tahmini değer sıfırlanıp kesin ödemelere geçer.</p></div>
  <div class=sec><div class=grid style="grid-template-columns:repeat(auto-fit,minmax(320px,1fr));align-items:start;gap:24px">${t2('Varlıklarım',vi)}${t2('Borçlarım',bi)}</div><p class=mut style="margin-top:10px">Borçların şu anki dağılımı: kısa vadeli (12 ay içinde ödenecek) ${TL(tt(bi,1)-uz0)}, uzun vadeli ${TL(uz0)}. Hesapları, altın ve dövizi Ayarlar sekmesinden düzenlersin.</p></div>`;
 }
- const nrem=(d,k)=>d.end?Math.max(0,ymk(d.end)-k):0;
- const kart=k=>sum(S.stmts.filter(x=>x.amt>0).map(x=>mkd(x.dt)>k?x.amt:Math.max(0,x.amt-(sPaid(x)||x.amt))));
- const debt=k=>sum(lns.map(d=>d.pay*nrem(d,k)))+sum(bl.map(dTL))+kart(k);
- const longD=k=>sum(lns.map(d=>d.pay*Math.max(0,nrem(d,k)-12)))+sum(bl.filter(d=>d.uz).map(dTL));
- let ti=0,tk=0,te=0;
- for(let k=s0;k<s0+12;k++){const c=calc(k),nb=sum(S.accts.map(a=>balEnd(a,k))),db=debt(k);ti+=c.inc;tk+=c.cash;te+=c.est;rows.push({k,inc:c.inc,kes:c.cash,est:c.est,net:c.inc-c.cash,nb,db,nv:nb+oth-db})}
- const f=rows[0],l=rows[11],tn=ti-tk,low=rows.reduce((a,b)=>b.nb<a.nb?b:a),dd=f.db-l.db,dn=l.nv-f.nv,sg=v=>(v>=0?'+':'−')+TL(Math.abs(v)),nt=[];
- nt.push(`Önümüzdeki 12 ayda ${TL(ti)} gelir ve ${TL(tk)} kesinleşmiş ödeme görünüyor. Fark yaklaşık ${TL(Math.abs(tn))} ${tn>=0?'artı':'eksi'}.`);
- nt.push(`Hesaplarındaki toplam nakit bu ay sonu yaklaşık ${TL(f.nb)}, 12 ay sonunda ${TL(l.nb)} olması bekleniyor.`);
- if(f.db>0)nt.push(dd>0?`Toplam borç (faiz hariç) ${TL(f.db)} seviyesinden ${TL(l.db)} seviyesine iniyor, yani 12 ayda yaklaşık ${TL(dd)} eriyor.${longD(s0+11)>0?` Kalan borcun ${TL(longD(s0+11))} kadarı 12 aydan sonraya uzanan uzun vadeli kısım.`:''}`:`Toplam borç (faiz hariç) ${TL(f.db)} civarında, bu dönemde azalmıyor görünüyor.`);
- nt.push(`Net varlığın ${TL(f.nv)} seviyesinden ${TL(l.nv)} seviyesine ${dn>=0?'çıkıyor':'düşüyor'} (${sg(dn)}). Uzun vadeli krediler dahil bütün borçlar düşüldüğü için bu rakam eksi olabilir, asıl önemli olan yönü.`);
- if(low.nb<0)nt.push(`${ml(low.k)} ayında hesaplarındaki toplam nakit eksiye (${TL(low.nb)}) düşüyor görünüyor. Maaş ya da ek gelir günlerini, o aydaki büyük ödemeleri bir kontrol etmek iyi olur.`);
- else nt.push(`Nakit en düşük ${ml(low.k)} ayında (${TL(low.nb)}).`);
- nt.push(`Gelecek aylarda kart ekstreleri henüz girilmediği için kesin ödemeler olduğundan düşük görünebilir.${te>0.5?` Ekstresi girilmemiş kartların tahmini ödemeleri (${TL(te)}) hesaba dahil değil.`:''}`);
- const cl=v=>v<0?' class=neg':'',st='style="font-size:19px"';
- const vi=[...S.accts.map(a=>[a.name,balEnd(a,s0),balEnd(a,s0+11)]),...S.assets.map(a=>[a.name,dTL(a),dTL(a)])];
- const bi=[...(kart(s0)||kart(s0+11)?[['Kart ekstreleri',kart(s0),kart(s0+11)]]:[]),...lns.map(d=>[d.name,d.pay*nrem(d,s0),d.pay*nrem(d,s0+11)]),...bl.map(d=>[d.name+(d.uz?' (uzun vadeli)':''),dTL(d),dTL(d)])];
- const tt=(a,j)=>sum(a.map(x=>x[j])),t2=(ti2,it,e)=>`<div><h3 style="margin-top:0">${ti2}</h3><table><thead><tr><th></th><th>Bu ay sonu</th><th>12 ay sonu</th></tr></thead><tbody>${it.map(x=>`<tr><td>${esc(x[0])}</td><td>${TL(x[1])}</td><td>${TL(x[2])}</td></tr>`).join('')||'<tr><td class=mut>Henüz yok</td><td></td><td></td></tr>'}</tbody><tfoot><tr><td>Toplam</td><td>${TL(tt(it,1))}</td><td>${TL(tt(it,2))}</td></tr></tfoot></table></div>`;
- const uz0=longD(s0);
- return `<div class=sec><h2>Önümüzdeki 12 ay (${ml(s0)} – ${ml(s0+11)})</h2>
- <div class=stats><div><span>Gelir (12 ay)</span><b>${TL(ti)}</b></div><div><span>Kesin ödemeler</span><b>${TL(tk)}</b></div><div><span>Kâr / zarar</span><b class="${tn<0?'neg':'pos'}">${sg(tn)}</b></div></div>
- <div class=stats style="margin-top:18px"><div><span>Nakit: bu ay sonu → 12 ay sonu</span><b ${st}>${TL(f.nb)} → ${TL(l.nb)}</b></div><div><span>Borç: bu ay sonu → 12 ay sonu</span><b ${st}>${TL(f.db)} → ${TL(l.db)}</b></div><div><span>Net varlık değişimi (12 ay)</span><b ${st} class="${dn<0?'neg':'pos'}">${sg(dn)}</b></div></div>
- ${notesHtml(nt)}</div>
- <div class=sec><div class=wrap><table class=sm><thead><tr><th>Ay</th><th>Gelir</th><th>Kesin ödemeler</th><th>Tahmini kart</th><th>Net</th><th>Nakit (ay sonu)</th><th>Borç (ay sonu)</th><th>Net varlık</th></tr></thead><tbody>
- ${rows.map(r=>`<tr><td>${ml(r.k)}</td><td>${TL(r.inc)}</td><td>${TL(r.kes)}</td><td class=mut>${r.est>0.5?'~'+TL(r.est):'-'}</td><td${cl(r.net)}><b>${TL(r.net)}</b></td><td${cl(r.nb)}>${TL(r.nb)}</td><td>${TL(r.db)}</td><td${cl(r.nv)}>${TL(r.nv)}</td></tr>`).join('')}</tbody>
- <tfoot><tr><td>Toplam</td><td>${TL(ti)}</td><td>${TL(tk)}</td><td class=mut>${te>0.5?'~'+TL(te):'-'}</td><td${cl(tn)}>${TL(tn)}</td><td></td><td></td><td></td></tr></tfoot></table></div>
- <p class=mut style="margin-top:10px">Net = gelir − kesin ödemeler. Nakit = hesap bakiyeleri + her ayın neti. Borç: kalan kredi taksitleri, borç listesi ve ödenmemiş ekstreler (faiz hariç). Net varlık = nakit + diğer varlıklar − borç. Tahmini kart sütunu hesaplara dahil değildir. Hesaplar ve varlıklar Ayarlar sekmesinde.</p></div>
- <div class=sec><div class=grid style="grid-template-columns:repeat(auto-fit,minmax(320px,1fr));align-items:start;gap:24px">${t2('Varlıklarım',vi)}${t2('Borçlarım',bi)}</div><p class=mut style="margin-top:10px">Borçların şu anki dağılımı: kısa vadeli (12 ay içinde ödenecek) ${TL(tt(bi,1)-uz0)}, uzun vadeli ${TL(uz0)}. Hesapları, altın ve dövizi Ayarlar sekmesinden düzenlersin.</p></div>`}
 
 function vGelir(){
  const src=S.isrc||[];
