@@ -216,6 +216,7 @@ window.cizGrafikler = function(deneme = 0) {
 
     const M = S.m, c = calc(M);
     
+    // 1. Kategori Grafiği (%5 altı dilimde 'Diğer' olarak birleşir, lejantta tüm renkler korunur)
     const ctxHarc = document.getElementById('harcamaGrafigi');
     if (ctxHarc) {
         if (window.chartHarcama && typeof window.chartHarcama.destroy === 'function') {
@@ -224,6 +225,7 @@ window.cizGrafikler = function(deneme = 0) {
         window.chartHarcama = null;
         
         const it = c.items;
+        const PALETTE = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#14B8A6', '#64748B'];
         const cats = CL().filter(k => it.some(i => i.cat === k.id))
             .map(k => ({ name: k.name, val: sum(it.filter(i => i.cat === k.id).map(i => i.a)) }))
             .sort((a, b) => b.val - a.val);
@@ -231,6 +233,29 @@ window.cizGrafikler = function(deneme = 0) {
         const totalCat = sum(cats.map(x => x.val));
 
         if (cats.length > 0 && totalCat > 0) {
+            const majorCats = [];
+            const minorCats = [];
+            cats.forEach((k, idx) => {
+                const color = PALETTE[idx % PALETTE.length];
+                const pct = (k.val / totalCat) * 100;
+                if (pct < 5 && cats.length > 3) {
+                    minorCats.push({ ...k, color, idx });
+                } else {
+                    majorCats.push({ ...k, color, idx });
+                }
+            });
+
+            const chartLabels = majorCats.map(k => `${k.name} (%${Math.round((k.val / totalCat) * 100)})`);
+            const chartData = majorCats.map(k => k.val);
+            const chartColors = majorCats.map(k => k.color);
+
+            if (minorCats.length > 0) {
+                const minorSum = sum(minorCats.map(x => x.val));
+                chartLabels.push(`Diğer (<%5) (%${Math.round((minorSum / totalCat) * 100)})`);
+                chartData.push(minorSum);
+                chartColors.push('#94A3B8');
+            }
+
             const centerTextPlugin = {
                 id: 'centerText',
                 afterDraw(chart) {
@@ -255,13 +280,10 @@ window.cizGrafikler = function(deneme = 0) {
             window.chartHarcama = new Chart(ctxHarc, {
                 type: 'doughnut',
                 data: {
-                    labels: cats.map(k => {
-                        const pct = Math.round((k.val / totalCat) * 100);
-                        return `${k.name} (%${pct})`;
-                    }),
+                    labels: chartLabels,
                     datasets: [{
-                        data: cats.map(k => k.val),
-                        backgroundColor: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#14B8A6', '#64748B'],
+                        data: chartData,
+                        backgroundColor: chartColors,
                         borderWidth: 2,
                         borderColor: '#FFFFFF',
                         hoverOffset: 6
@@ -269,17 +291,33 @@ window.cizGrafikler = function(deneme = 0) {
                 },
                 options: { 
                     responsive: true,
-                    cutout: '68%',
+                    maintainAspectRatio: true,
+                    cutout: '66%',
                     animation: false,
                     plugins: { 
                         legend: { 
                             position: 'bottom', 
                             labels: { 
                                 color: '#334155', 
-                                font: { size: 12, weight: '600' },
-                                padding: 14,
+                                font: { size: 11, weight: '600' },
+                                padding: 10,
+                                boxWidth: 10,
+                                boxHeight: 10,
                                 usePointStyle: true,
-                                pointStyle: 'circle'
+                                pointStyle: 'circle',
+                                generateLabels() {
+                                    return cats.map((k, idx) => {
+                                        const pct = Math.round((k.val / totalCat) * 100);
+                                        return {
+                                            text: `${k.name} (%${pct})`,
+                                            fillStyle: PALETTE[idx % PALETTE.length],
+                                            strokeStyle: '#FFFFFF',
+                                            lineWidth: 1,
+                                            hidden: false,
+                                            index: idx
+                                        };
+                                    });
+                                }
                             } 
                         },
                         tooltip: {

@@ -309,24 +309,34 @@ function vHarc(){
 
  return `<div class=sec>${mpick()}<h2>Ne nereye gidiyor (${ml(M)})</h2>
  <p class=mut>Renkler üstteki grafikle eşleşir. Tablodaki tutarlara dokunarak detayları görebilirsin.</p>
- <div style="max-width:300px; margin: 16px auto; display: ${cats.length ? 'block' : 'none'}"><canvas id="harcamaGrafigi"></canvas></div>
- ${cats.length?`<div class=wrap><table style="font-size:12px;"><thead><tr>
-  <th style="width:32px;text-align:center;" title="Kategori Rengi">Kat.</th>
-  ${PL().map(p=>`<th style="padding:8px 6px;">${esc(p.name==='Tüm aile'?'Ortak':p.name)}</th>`).join('')}
+ <div style="width:100%; max-width:340px; margin: 16px auto 28px auto; display: ${cats.length ? 'block' : 'none'}"><canvas id="harcamaGrafigi"></canvas></div>
+ ${cats.length?`<div class=wrap style="margin-top:8px;"><table style="font-size:12px; width:auto; min-width:100%;"><thead><tr>
+  <th style="width:30px;text-align:center;padding:8px 4px;" title="Kategori Rengi">Kat.</th>
   <th style="padding:8px 6px;">Top.</th>
   <th style="padding:8px 4px;">Pay</th>
+  ${PL().map(p=>`<th style="padding:8px 6px;">${esc(p.name==='Tüm aile'?'Ortak':p.name)}</th>`).join('')}
  </tr></thead><tbody>
  ${cats.map((k,idx)=>{
   const clr=CHART_COLORS[idx%CHART_COLORS.length];
   return `<tr>
    <td style="text-align:center;padding:8px 4px;" title="${esc(k.name)}"><span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:${clr};vertical-align:middle;box-shadow:0 1px 3px rgba(0,0,0,0.15);"></span></td>
-   ${PL().map(p=>{const a=sum(it.filter(i=>i.cat===k.id&&i.who===p.id).map(i=>i.a));return a?`<td class="mx-cell${isSel(k.id,p.id)}" onclick="toggleHarcDrill('${esc(k.id)}','${esc(p.id)}')">${TL(a)}</td>`:`<td style="padding:8px 6px;"><span class=mut>-</span></td>`}).join('')}
    <td class="mx-cell${isSel(k.id,'ALL')}" onclick="toggleHarcDrill('${esc(k.id)}','ALL')"><b>${TL(tot(k.id))}</b></td>
    <td class=mut style="padding:8px 4px;white-space:nowrap;">${pc(tot(k.id))}</td>
+   ${PL().map(p=>{const a=sum(it.filter(i=>i.cat===k.id&&i.who===p.id).map(i=>i.a));return a?`<td class="mx-cell${isSel(k.id,p.id)}" onclick="toggleHarcDrill('${esc(k.id)}','${esc(p.id)}')">${TL(a)}</td>`:`<td style="padding:8px 6px;"><span class=mut>-</span></td>`}).join('')}
   </tr>`;
  }).join('')}</tbody>
- <tfoot><tr><td style="text-align:center;padding:8px 4px;">Top.</td>${PL().map(p=>{const a=who(p.id);return a?`<td class="mx-cell${isSel('ALL',p.id)}" onclick="toggleHarcDrill('ALL','${esc(p.id)}')">${TL(a)}</td>`:`<td style="padding:8px 6px;">${TL(0)}</td>`}).join('')}<td class="mx-cell${isSel('ALL','ALL')}" onclick="toggleHarcDrill('ALL','ALL')">${TL(tsp)}</td><td style="padding:8px 4px;">${tsp?'%100':''}</td></tr>
- <tr class=mut><td style="text-align:center;padding:6px 4px;">Pay</td>${PL().map(p=>`<td style="padding:6px;">${pc(who(p.id))}</td>`).join('')}<td></td><td></td></tr></tfoot></table></div>${drillHtml}${notesHtml(noteHarc(M,c))}`:'<p class=mut>Bu ay için kayıt yok. Ekle sekmesinden harcama gir.</p>'}</div>`;
+ <tfoot><tr>
+  <td style="text-align:center;padding:8px 4px;">Top.</td>
+  <td class="mx-cell${isSel('ALL','ALL')}" onclick="toggleHarcDrill('ALL','ALL')"><b>${TL(tsp)}</b></td>
+  <td style="padding:8px 4px;">${tsp?'%100':''}</td>
+  ${PL().map(p=>{const a=who(p.id);return a?`<td class="mx-cell${isSel('ALL',p.id)}" onclick="toggleHarcDrill('ALL','${esc(p.id)}')">${TL(a)}</td>`:`<td style="padding:8px 6px;">${TL(0)}</td>`}).join('')}
+ </tr>
+ <tr class=mut>
+  <td style="text-align:center;padding:6px 4px;">Pay</td>
+  <td></td>
+  <td></td>
+  ${PL().map(p=>`<td style="padding:6px;">${pc(who(p.id))}</td>`).join('')}
+ </tr></tfoot></table></div>${drillHtml}${notesHtml(noteHarc(M,c))}`:'<p class=mut>Bu ay için kayıt yok. Ekle sekmesinden harcama gir.</p>'}</div>`;
 }
 
 const A=o=>o&&o.acct&&S.accts.some(a=>a.id===o.acct)?o.acct:S.defAcct;
@@ -379,25 +389,25 @@ function vOde(){const M=S.m,c=calc(M),rows=cashRows(M);
  else if(first)w.push(`Ay toplamında gelir yetiyor ama ${first.d>=99?'ay içinde':(first.d||1)+' '+MN[M%12]+' civarında'} o güne kadar gelen gelir ödemelere yetmiyor (en düşük bakiye ${TL(minB)}). ${hasB?'Ay başı bakiyen '+TL(sb)+' olarak hesaba katıldı.':'Ay başı bakiyesi 0 varsayıldı.'} Hesabında bu tutar yoksa ödeme ya da maaş günlerine bir bak.`);
  return `<div class=sec>${mpick()}<h2>${ml(M)} nakit akışı</h2>${notesHtml(w)}
  <p class=mut>Gelirler ve hesaptan çıkan paralar gün sırasıyla. Kira, aidat, kredi, kesilmiş ekstre ve nakit harcamalar kesin sayılır.</p>
- ${rows.length?`<div class=wrap><table style="font-size:12px;"><thead><tr>
-  <th style="text-align:left;padding:8px 6px;">Kalem</th>
-  <th style="text-align:left;padding:8px 4px;width:48px;">Tür</th>
-  <th style="padding:8px 6px;">Tutar</th>
-  <th style="padding:8px 6px;">Bakiye</th>
-  <th style="text-align:right;padding:8px 6px;white-space:nowrap;">Tarih</th>
+ ${rows.length?`<div class=wrap><table style="font-size:12px; width:auto; max-width:100%;"><thead><tr>
+  <th style="text-align:left;padding:8px 8px 8px 4px;white-space:nowrap;">Kalem</th>
+  <th style="text-align:left;padding:8px 6px;white-space:nowrap;">Tür</th>
+  <th style="text-align:right;padding:8px 8px;white-space:nowrap;">Tutar</th>
+  <th style="text-align:right;padding:8px 8px;white-space:nowrap;">Bakiye</th>
+  <th style="text-align:right;padding:8px 4px 8px 8px;white-space:nowrap;">Tarih</th>
  </tr></thead><tbody>
- ${hasB?`<tr class=mut><td style="text-align:left;padding:8px 6px;">Ay başı bakiye</td><td></td><td></td><td style="padding:8px 6px;white-space:nowrap;">${TL(sb)}</td><td></td></tr>`:''}
+ ${hasB?`<tr class=mut><td style="text-align:left;padding:8px 8px 8px 4px;white-space:nowrap;">Ay başı</td><td></td><td></td><td style="text-align:right;padding:8px 8px;white-space:nowrap;">${TL(sb)}</td><td></td></tr>`:''}
  ${rows.map(r=>`<tr class="${r.k===0?'mut':''}">
-  <td style="text-align:left;padding:8px 6px;">${formatKalemTwoLine(r.n)}</td>
-  <td style="text-align:left;padding:8px 4px;font-size:11px;color:var(--mut);white-space:nowrap;">${r.t}</td>
-  <td style="padding:8px 6px;white-space:nowrap;">${r.k===2?'<b class=pos>+'+TL(r.a)+'</b>':(r.k?'<b>−'+TL(r.a)+'</b>':'~'+TL(r.a))}</td>
-  <td class="${r.b<0?'neg':'mut'}" style="padding:8px 6px;white-space:nowrap;">${r.b===null?'':TL(r.b)}</td>
-  <td style="text-align:right;padding:8px 6px;white-space:nowrap;font-size:11px;color:var(--mut);">${r.d&&r.d<99?r.d+' '+MN[M%12].slice(0,3):'-'}</td>
+  <td style="text-align:left;padding:8px 8px 8px 4px;white-space:nowrap;">${formatKalemTwoLine(r.n)}</td>
+  <td style="text-align:left;padding:8px 6px;font-size:11px;color:var(--mut);white-space:nowrap;">${r.t}</td>
+  <td style="text-align:right;padding:8px 8px;white-space:nowrap;">${r.k===2?'<b class=pos>+'+TL(r.a)+'</b>':(r.k?'<b>−'+TL(r.a)+'</b>':'~'+TL(r.a))}</td>
+  <td class="${r.b<0?'neg':'mut'}" style="text-align:right;padding:8px 8px;white-space:nowrap;">${r.b===null?'':TL(r.b)}</td>
+  <td style="text-align:right;padding:8px 4px 8px 8px;white-space:nowrap;font-size:11px;color:var(--mut);">${r.d&&r.d<99?r.d+' '+MN[M%12].slice(0,3):'-'}</td>
  </tr>`).join('')}</tbody>
  <tfoot>
-  <tr><td style="text-align:left;padding:8px 6px;">Gelir</td><td></td><td style="padding:8px 6px;">${TL(gel)}</td><td></td><td></td></tr>
-  <tr><td style="text-align:left;padding:8px 6px;">Ödemeler</td><td></td><td style="padding:8px 6px;">${TL(kes)}</td><td></td><td></td></tr>
-  <tr><td style="text-align:left;padding:8px 6px;">Net</td><td></td><td class="${net<0?'neg':'pos'}" style="padding:8px 6px;">${TL(net)}</td><td></td><td></td></tr>
+  <tr><td style="text-align:left;padding:8px 8px 8px 4px;">Gelir</td><td></td><td style="text-align:right;padding:8px 8px;white-space:nowrap;">${TL(gel)}</td><td></td><td></td></tr>
+  <tr><td style="text-align:left;padding:8px 8px 8px 4px;">Ödemeler</td><td></td><td style="text-align:right;padding:8px 8px;white-space:nowrap;">${TL(kes)}</td><td></td><td></td></tr>
+  <tr><td style="text-align:left;padding:8px 8px 8px 4px;">Net</td><td></td><td class="${net<0?'neg':'pos'}" style="text-align:right;padding:8px 8px;white-space:nowrap;">${TL(net)}</td><td></td><td></td></tr>
  </tfoot></table></div>
  <p class=mut>${tah>0.5?`Kart tahminleri toplama dahil değil: ~${TL(tah)}. Tahminle birlikte net: ${TL(net-tah)}.`:'Tüm rakamlar kesinleşmiş.'}</p>`:'<p class=mut>Bu ay için kayıt yok.</p>'}</div>`}
 
