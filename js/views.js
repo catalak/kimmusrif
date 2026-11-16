@@ -491,7 +491,30 @@ function rn(l,i,v){v=String(v).trim();if(!v){render();return}if(S[l].some((x,j)=
 function pAdd(){S.people.push({id:'p'+Date.now(),name:'Yeni kişi'});save();render()}
 function pDel(id){if(id==='aile')return;let n=0;['tx','fixed','yearly'].forEach(k=>S[k].forEach(t=>{if(t.who===id){t.who='aile';n++}}));S.people=S.people.filter(p=>p.id!==id);save();render();stat(n?n+' kayıt Tüm aile’ye aktarıldı':'Silindi')}
 function cAdd(){S.cats.push({id:'c'+Date.now(),name:'Yeni kategori'});save();render()}
-function cDel(id){if(id==='borc'||id==='diger')return;let n=0;['tx','fixed','yearly'].forEach(k=>S[k].forEach(t=>{if(t.cat===id){t.cat='diger';n++}}));S.cats=S.cats.filter(c=>c.id!==id);save();render();stat(n?n+' kayıt Diğer’e aktarıldı':'Silindi')}
+function cDel(id){
+ if(id==='borc'||id==='diger')return;
+ const catObj = S.cats.find(c=>c.id===id);
+ const n = useN('cat', id);
+ let targetId = 'diger';
+
+ if(n > 0){
+  const others = S.cats.filter(c=>c.id!==id && c.id!=='borc');
+  const listTxt = others.map((c,idx)=>`${idx+1}. ${c.name}`).join('\n');
+  const ans = prompt(`"${catObj?catObj.name:id}" kategorisinde ${n} kayıt var.\nBu kayıtlar hangi kategoriye aktarılsın? (Numara girin, boş bırakırsanız "Diğer" seçilir):\n\n${listTxt}`);
+  if(ans === null) return; // İptal'e basılırsa silme işlemini durdur
+  const num = parseInt(ans.trim(), 10);
+  if(num >= 1 && num <= others.length){
+   targetId = others[num - 1].id;
+  }
+ }
+
+ ['tx','fixed','yearly'].forEach(k=>S[k].forEach(t=>{if(t.cat===id)t.cat=targetId}));
+ S.cats = S.cats.filter(c=>c.id!==id);
+ const targetObj = S.cats.find(c=>c.id===targetId);
+ save();
+ render();
+ stat(n ? `${n} kayıt "${targetObj?targetObj.name:'Diğer'}" kategorisine aktarıldı` : 'Silindi');
+}
 function kAdd(){S.cards.push({id:'k'+Date.now(),name:'Yeni kart',due:15,cut:5});save();render()}
 function kDel(id){const n=S.tx.filter(t=>t.pay===id).length+S.stmts.filter(x=>x.card===id).length+S.yearly.filter(y=>y.pm===id).length;if(n){stat('Bu kartta '+n+' kayıt var, önce onları sil ya da başka karta al');return}S.cards=S.cards.filter(c=>c.id!==id);save();render()}
 const hesapSec=()=>{const ends=S.accts.map(a=>({a,e:balEnd(a,nowM())}));return `<div class=sec><h2>Hesaplar</h2><p class=mut>Banka hesaplarını ekle. Bakiyeyi, seçtiğin ayın başındaki tutar olarak yaz. Sonrası gelir ve ödemelerden hesaplanır. Nakit harcamalar, sabit giderler ve ekstre ödemeleri seçtiğin hesaptan düşer.</p>
