@@ -1,5 +1,4 @@
-// Modern Segmented Control (iOS Tarzı Kapsül Buton) Stili Enjeksiyonu
-// Modern Segmented Control (iOS Tarzı Kapsül Buton) Stili Enjeksiyonu
+// Modern Segmented Control, Check-Pill & Etkileşim Stilleri
 (function injectModernUI(){
  if(document.getElementById('musrif-ui-patch')) return;
  const st=document.createElement('style');
@@ -28,9 +27,7 @@
     appearance: none;
     -webkit-appearance: none;
   }
-  .seg button:hover {
-    color: var(--ink);
-  }
+  .seg button:hover { color: var(--ink); }
   .seg button.on {
     background: #FFFFFF !important;
     color: var(--acc) !important;
@@ -40,22 +37,66 @@
     cursor: pointer;
     border-radius: 8px;
     transition: background 0.15s;
+    user-select: none;
+    padding: 8px 6px !important;
+    white-space: nowrap;
   }
   .mx-cell:hover {
-    background: rgba(59, 130, 246, 0.1) !important;
+    background: rgba(59, 130, 246, 0.12) !important;
     color: var(--acc);
   }
   .mx-cell.sel {
-    background: rgba(59, 130, 246, 0.16) !important;
+    background: rgba(59, 130, 246, 0.18) !important;
     color: var(--acc);
     font-weight: 800;
+  }
+  .chk-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 12px;
+    border-radius: 12px;
+    border: 1.5px solid var(--line);
+    background: #FFFFFF;
+    color: var(--mut);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.15s ease;
+  }
+  .chk-pill.on {
+    border-color: var(--acc);
+    background: rgba(59, 130, 246, 0.08);
+    color: var(--acc);
+  }
+  .chk-box {
+    width: 18px;
+    height: 18px;
+    border-radius: 6px;
+    border: 1.5px solid #CBD5E1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    background: #FFFFFF;
+    color: transparent;
+    transition: all 0.15s ease;
+  }
+  .chk-pill.on .chk-box {
+    background: var(--acc);
+    border-color: var(--acc);
+    color: #FFFFFF;
   }
  `;
  document.head.appendChild(st);
 })();
 
+const CHART_COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#14B8A6', '#64748B'];
+
 window.txFilter = window.txFilter || { q: '', key: 'date', dir: -1, open: false };
 window.harcDrill = window.harcDrill || null;
+window.ozetWhoDrill = window.ozetWhoDrill || null;
 
 window.setTxSort = function(key) {
  if (window.txFilter.key === key) {
@@ -85,7 +126,31 @@ window.toggleHarcDrill = function(cat, who) {
  render();
 };
 
-const mpick=()=>`<div class=row><input type=month style="width:auto" value="${Math.floor(S.m/12)}-${String(S.m%12+1).padStart(2,'0')}" onchange="S.m=mkd(this.value+'-01');window.harcDrill=null;save();render()"></div>`;
+window.toggleOzetWhoDrill = function(who) {
+ window.ozetWhoDrill = (window.ozetWhoDrill === who) ? null : who;
+ render();
+};
+
+// Sabit gider tutarı değiştiğinde geçmişi koruyup bu aydan itibaren ileriye uygular
+window.updateFixedAmt = function(i, val) {
+ const v = parseFloat(val) || 0;
+ const f = S.fixed[i];
+ if (!f) return;
+ if (f.amt === v) return;
+ const curYm = ikey(S.m);
+ if (!f.from || f.from >= curYm) {
+  f.amt = v;
+ } else {
+  const prevYm = ikey(S.m - 1);
+  const copy = Object.assign({}, f, { amt: v, from: curYm });
+  f.to = prevYm;
+  S.fixed.splice(i + 1, 0, copy);
+ }
+ save();
+ render();
+};
+
+const mpick=()=>`<div class=row><input type=month style="width:auto" value="${Math.floor(S.m/12)}-${String(S.m%12+1).padStart(2,'0')}" onchange="S.m=mkd(this.value+'-01');window.harcDrill=null;window.ozetWhoDrill=null;save();render()"></div>`;
 const debtAll=()=>sum(S.stmts.map(x=>Math.max(0,x.amt-sPaid(x))))+sum(S.debts.filter(d=>d.kind!=='kredi').map(dTL));
 function noteOzet(M,c){const n=[],net=c.inc-c.cash;
  if(!c.inc&&!c.spend&&!c.cash)return['Bu ay için henüz kayıt yok. Ekle sekmesinden harcama, Gelirler sekmesinden gelir girince burada özet belirir.'];
@@ -107,10 +172,37 @@ function noteHarc(M,c){const n=[],tsp=c.spend;if(!tsp)return n;
  return n}
 const notesHtml=a=>a.length?`<div class=notes>${a.map(t=>`<p>${esc(t)}</p>`).join('')}</div>`:'';
 
+function renderItemRows(items, M){
+ return items.map(m=>{
+  const dtStr = m.date ? (m.date.slice(8)+'.'+m.date.slice(5,7)) : ml(M);
+  const payStr = m.pay ? pn(m.pay) : 'Sabit / Yıllık';
+  const instStr = (m.inst && m.inst > 1) ? ` (${m.inst} taksit)` : '';
+  return `<tr style="border-bottom:1px solid var(--line);">
+   <td style="padding:8px 4px; white-space:nowrap;">${dtStr}</td>
+   <td style="padding:8px 4px;"><b>${esc(cn(m.cat))}</b>${m.note ? ' · ' + esc(m.note) : ''}</td>
+   <td class=mut style="padding:8px 4px; font-size:12px;">${esc(wn(m.who))}</td>
+   <td class=mut style="padding:8px 4px; font-size:12px;">${esc(payStr)}${instStr}</td>
+   <td style="padding:8px 4px; text-align:right; font-weight:700; white-space:nowrap;">${TL(m.a)}</td>
+  </tr>`;
+ }).join('');
+}
+
 function vOzet(){
  const M=S.m,c=calc(M),net=c.inc-c.cash,yy=sum(S.yearly.map(y=>yA(y,Math.floor(M/12))))/12;
  const tf=window.txFilter;
  const q=tf.q.trim().toLocaleLowerCase('tr');
+
+ let whoDrillHtml='';
+ if(window.ozetWhoDrill){
+  const wItems=c.items.filter(i=>i.who===window.ozetWhoDrill);
+  whoDrillHtml=`<div style="margin-top:12px; padding:14px 16px; background:#F8FAFC; border:1px solid var(--acc); border-radius:14px;">
+   <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+    <b style="font-size:14px; color:var(--ink);">${esc(wn(window.ozetWhoDrill))} — ${ml(M)} Harcamaları (${wItems.length} kalem · ${TL(sum(wItems.map(x=>x.a)))})</b>
+    <button class=b style="padding:4px 10px; font-size:12px;" onclick="window.ozetWhoDrill=null;render()">Kapat ✕</button>
+   </div>
+   ${wItems.length?`<div style="overflow-x:auto;"><table style="width:100%; font-size:13px; border-collapse:collapse;"><tbody>${renderItemRows(wItems,M)}</tbody></table></div>`:'<p class=mut style="margin:0;">Bu ay için kayıt yok.</p>'}
+  </div>`;
+ }
 
  let list=S.tx.map((t,i)=>({t,i})).filter(x=>q ? true : (mkd(x.t.date)===M||mkd(x.t.date)===M-1));
  if(q){
@@ -135,10 +227,12 @@ function vOzet(){
 
  return `<div class=sec>${mpick()}
  <div style="max-width:100%; margin-bottom: 25px; display: ${c.spend > 0 ? 'block' : 'none'}">
-  <h3 style="text-align:center; color:var(--ink); margin-top:10px; margin-bottom:10px; font-size:16px;">Kimin Harcaması Daha Çok?</h3>
+  <h3 style="text-align:center; color:var(--ink); margin-top:10px; margin-bottom:4px; font-size:16px;">Kimin Harcaması Daha Çok?</h3>
+  <p class=mut style="text-align:center; font-size:12px; margin:0 0 10px 0;">Detayları görmek için kişinin çubuğuna dokun</p>
   <div style="position: relative; height: 180px;">
     <canvas id="kisiGrafigi"></canvas>
   </div>
+  ${whoDrillHtml}
  </div>
  <div class=stats><div><span>Gelir</span><b>${TL(c.inc)}</b></div><div><span>Ödemeler (kesinleşen)</span><b>${TL(c.cash)}</b></div>
  <div><span>Kalan</span><b class="${net<0?'neg':'pos'}">${TL(net)}</b></div></div>
@@ -170,59 +264,82 @@ function vOzet(){
 }
 
 function vHarc(){
- const M=S.m,c=calc(M),it=c.items,tsp=c.spend,pc=a=>tsp?'%'+Math.round(a/tsp*100):'-',cats=CL().filter(k=>it.some(i=>i.cat===k.id));
- const tot=k=>sum(it.filter(i=>i.cat===k).map(i=>i.a)),mx=Math.max(1,...cats.map(k=>tot(k.id))),who=w=>sum(it.filter(i=>i.who===w).map(i=>i.a));
+ const M=S.m,c=calc(M),it=c.items,tsp=c.spend,pc=a=>tsp?'%'+Math.round(a/tsp*100):'-';
+ const tot=k=>sum(it.filter(i=>i.cat===k).map(i=>i.a));
+ // Grafikteki renk sırasıyla birebir eşleşmesi için tutara göre büyükten küçüğe sırala
+ const cats=CL().filter(k=>it.some(i=>i.cat===k.id)).sort((a,b)=>tot(b.id)-tot(a.id));
+ const who=w=>sum(it.filter(i=>i.who===w).map(i=>i.a));
  const dr=window.harcDrill;
 
  let drillHtml='';
  if(dr){
   const matched=it.filter(i=>(dr.cat==='ALL'||i.cat===dr.cat)&&(dr.who==='ALL'||i.who===dr.who));
   const titleParts=[dr.cat==='ALL'?'Tüm Kategoriler':cn(dr.cat), dr.who==='ALL'?'Tüm Aile':wn(dr.who)];
-  drillHtml=`<div style="margin-top:16px; padding:16px; background:#F8FAFC; border:1px solid var(--acc); border-radius:14px;">
-   <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-    <b style="font-size:14px; color:var(--ink);">${esc(titleParts.join(' · '))} (${matched.length} kalem — ${TL(sum(matched.map(x=>x.a)))})</b>
+  drillHtml=`<div style="margin-top:16px; padding:14px 16px; background:#F8FAFC; border:1px solid var(--acc); border-radius:14px;">
+   <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+    <b style="font-size:14px; color:var(--ink);">${esc(titleParts.join(' · '))} (${matched.length} kalem · ${TL(sum(matched.map(x=>x.a)))})</b>
     <button class=b style="padding:4px 10px; font-size:12px;" onclick="window.harcDrill=null;render()">Kapat ✕</button>
    </div>
-   ${matched.length?`<table style="width:100%; font-size:13px; border-collapse:collapse;"><tbody>${matched.map(m=>`<tr style="border-bottom:1px solid var(--line);">
-    <td style="padding:8px 4px; white-space:nowrap;">${m.date?m.date.slice(8)+'.'+m.date.slice(5,7):ml(M)}</td>
-    <td style="padding:8px 4px;"><b>${esc(cn(m.cat))}</b>${m.note?' · '+esc(m.note):''}</td>
-    <td class=mut style="padding:8px 4px; font-size:12px;">${esc(wn(m.who))}</td>
-    <td class=mut style="padding:8px 4px; font-size:12px;">${m.pay?esc(pn(m.pay)):'Sabit/Yıllık'}${m.inst>1?' ('+m.inst+' taksit)':''}</td>
-    <td style="padding:8px 4px; text-align:right; font-weight:700; white-space:nowrap;">${TL(m.a)}</td>
-   </tr>`).join('')}</tbody></table>`:'<p class=mut style="margin:0;">Kayıt bulunamadı.</p>'}
+   ${matched.length?`<div style="overflow-x:auto;"><table style="width:100%; font-size:13px; border-collapse:collapse;"><tbody>${renderItemRows(matched,M)}</tbody></table></div>`:'<p class=mut style="margin:0;">Kayıt bulunamadı.</p>'}
   </div>`;
  }
 
  const isSel=(cat,w)=>dr&&dr.cat===cat&&dr.who===w?' sel':'';
 
  return `<div class=sec>${mpick()}<h2>Ne nereye gidiyor (${ml(M)})</h2>
- <p class=mut>Tablodaki tutarlara tıklayarak o kalemin detaylı dökümünü görebilirsin. Alışverişi yaptığın ayda tam tutarla sayılır.</p>
- <div style="max-width:320px; margin: 20px auto; display: ${cats.length ? 'block' : 'none'}"><canvas id="harcamaGrafigi"></canvas></div>
- ${cats.length?`<div class=wrap><table><thead><tr><th>Kategori</th>${PL().map(p=>`<th>${esc(p.name)}</th>`).join('')}<th>Toplam</th><th>Pay</th><th style="width:120px"></th></tr></thead><tbody>
- ${cats.map(k=>`<tr><td>${esc(k.name)}</td>${PL().map(p=>{const a=sum(it.filter(i=>i.cat===k.id&&i.who===p.id).map(i=>i.a));return a?`<td class="mx-cell${isSel(k.id,p.id)}" onclick="toggleHarcDrill('${k.id}','${p.id}')">${TL(a)}</td>`:`<td><span class=mut>-</span></td>`}).join('')}<td class="mx-cell${isSel(k.id,'ALL')}" onclick="toggleHarcDrill('${k.id}','ALL')"><b>${TL(tot(k.id))}</b></td><td class=mut>${pc(tot(k.id))}</td><td><div class=bar style="width:${tot(k.id)/mx*100}%"></div></td></tr>`).join('')}</tbody>
- <tfoot><tr><td>Toplam</td>${PL().map(p=>{const a=who(p.id);return a?`<td class="mx-cell${isSel('ALL',p.id)}" onclick="toggleHarcDrill('ALL','${p.id}')">${TL(a)}</td>`:`<td>${TL(0)}</td>`}).join('')}<td class="mx-cell${isSel('ALL','ALL')}" onclick="toggleHarcDrill('ALL','ALL')">${TL(tsp)}</td><td>${tsp?'%100':''}</td><td></td></tr><tr class=mut><td>Pay</td>${PL().map(p=>`<td>${pc(who(p.id))}</td>`).join('')}<td></td><td></td><td></td></tr></tfoot></table></div>${drillHtml}${notesHtml(noteHarc(M,c))}`:'<p class=mut>Bu ay için kayıt yok. Ekle sekmesinden harcama gir.</p>'}</div>`;
+ <p class=mut>Renkler üstteki grafikle eşleşir. Tablodaki tutarlara dokunarak detayları görebilirsin.</p>
+ <div style="max-width:300px; margin: 16px auto; display: ${cats.length ? 'block' : 'none'}"><canvas id="harcamaGrafigi"></canvas></div>
+ ${cats.length?`<div class=wrap><table style="font-size:12px;"><thead><tr>
+  <th style="width:32px;text-align:center;" title="Kategori Rengi">Kat.</th>
+  ${PL().map(p=>`<th style="padding:8px 6px;">${esc(p.name==='Tüm aile'?'Ortak':p.name)}</th>`).join('')}
+  <th style="padding:8px 6px;">Top.</th>
+  <th style="padding:8px 4px;">Pay</th>
+ </tr></thead><tbody>
+ ${cats.map((k,idx)=>{
+  const clr=CHART_COLORS[idx%CHART_COLORS.length];
+  return `<tr>
+   <td style="text-align:center;padding:8px 4px;" title="${esc(k.name)}"><span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:${clr};vertical-align:middle;box-shadow:0 1px 3px rgba(0,0,0,0.15);"></span></td>
+   ${PL().map(p=>{const a=sum(it.filter(i=>i.cat===k.id&&i.who===p.id).map(i=>i.a));return a?`<td class="mx-cell${isSel(k.id,p.id)}" onclick="toggleHarcDrill('${esc(k.id)}','${esc(p.id)}')">${TL(a)}</td>`:`<td style="padding:8px 6px;"><span class=mut>-</span></td>`}).join('')}
+   <td class="mx-cell${isSel(k.id,'ALL')}" onclick="toggleHarcDrill('${esc(k.id)}','ALL')"><b>${TL(tot(k.id))}</b></td>
+   <td class=mut style="padding:8px 4px;white-space:nowrap;">${pc(tot(k.id))}</td>
+  </tr>`;
+ }).join('')}</tbody>
+ <tfoot><tr><td style="text-align:center;padding:8px 4px;">Top.</td>${PL().map(p=>{const a=who(p.id);return a?`<td class="mx-cell${isSel('ALL',p.id)}" onclick="toggleHarcDrill('ALL','${esc(p.id)}')">${TL(a)}</td>`:`<td style="padding:8px 6px;">${TL(0)}</td>`}).join('')}<td class="mx-cell${isSel('ALL','ALL')}" onclick="toggleHarcDrill('ALL','ALL')">${TL(tsp)}</td><td style="padding:8px 4px;">${tsp?'%100':''}</td></tr>
+ <tr class=mut><td style="text-align:center;padding:6px 4px;">Pay</td>${PL().map(p=>`<td style="padding:6px;">${pc(who(p.id))}</td>`).join('')}<td></td><td></td></tr></tfoot></table></div>${drillHtml}${notesHtml(noteHarc(M,c))}`:'<p class=mut>Bu ay için kayıt yok. Ekle sekmesinden harcama gir.</p>'}</div>`;
 }
 
 const A=o=>o&&o.acct&&S.accts.some(a=>a.id===o.acct)?o.acct:S.defAcct;
 const aName=id=>{const a=S.accts.find(x=>x.id===id);return a?a.name:''};
 const resAcct=w=>{const p=PL().find(x=>x.id===w);return p&&p.acct&&S.accts.some(a=>a.id===p.acct)?p.acct:S.defAcct};
 const acSel=(k,i,v)=>S.accts.length>1?`<select title="Hesap" style="flex:1;min-width:115px" onchange="U('${k}',${i},'acct',this.value)">${optI(S.accts,A({acct:v}))}</select>`:'';
+
+// "Seçkin maaşı" / "Zeynep maaş" gibi gelir kalemlerini kişi adına kısaltır
+function shortIncName(nm){
+ const s=String(nm||'').trim();
+ if(/maaş/i.test(s)){
+  const first=s.split(/\s+/)[0];
+  if(first) return first;
+ }
+ return s;
+}
+
 function cashRows(M){const rows=[],Y=Math.floor(M/12);
  S.fixed.filter(f=>on(f,M)).forEach(f=>rows.push({d:+f.day||0,n:f.name||cn(f.cat),a:f.amt,t:'Sabit',k:1,ac:A(f)}));
- S.debts.filter(d=>d.kind==='kredi'&&loanOn(d,M)).forEach(d=>rows.push({d:+d.day||0,n:d.name,a:d.pay,t:'Kredi taksiti',k:1,ac:A(d)}));
+ S.debts.filter(d=>d.kind==='kredi'&&loanOn(d,M)).forEach(d=>rows.push({d:+d.day||0,n:d.name,a:d.pay,t:'Kredi',k:1,ac:A(d)}));
  S.yearly.filter(y=>y.month-1===M%12&&(!y.pm||y.pm==='cash')).forEach(y=>rows.push({d:+y.day||0,n:y.name,a:yA(y,Y),t:'Yıllık',k:1,ac:A(y)}));
  S.cards.forEach(cd=>{const st=S.stmts.filter(x=>x.card===cd.id&&mkd(x.dt)===M&&(x.amt>0||x.odenen>0));
-  st.forEach(x=>rows.push({d:+x.dt.slice(8),n:cd.name+' ekstresi',a:sPaid(x)||x.amt,t:x.d===2?'Ödenen':(x.d===1?'Asgari ödenen':(x.d===3?'Kısmen ödenen':'Ekstre')),k:1,ac:A(x)}));
+  st.forEach(x=>rows.push({d:+x.dt.slice(8),n:cd.name+' ekstresi',a:sPaid(x)||x.amt,t:x.d===2?'Ödenen':(x.d===1?'Asgari':(x.d===3?'Kısmi':'Ekstre')),k:1,ac:A(x)}));
   {const tp=cardTah(cd,M);if(tp>0.5)rows.push({d:+cd.due,n:cd.name+' (Tahmini)',a:tp,t:'Tahmini',k:0,ac:S.defAcct})}});
  const by={};S.tx.filter(t=>t.type!=='in'&&t.pay==='cash'&&mkd(t.date)===M).forEach(t=>{const x=A(t);by[x]=(by[x]||0)+t.amt});
  Object.keys(by).forEach(x=>rows.push({d:99,n:'Nakit harcamalar'+(S.accts.length>1?' ('+aName(x)+')':''),a:by[x],t:'Nakit',k:1,ac:x}));
- S.isrc.forEach(x=>{const a=iv(M,x.id);if(a>0)rows.push({d:+x.day||1,n:x.name,a,t:'Gelir',k:2,ac:A(x)})});
- S.tx.filter(t=>t.type==='in'&&mkd(t.date)===M).forEach(t=>rows.push({d:+t.date.slice(8),n:t.cat,a:t.amt,t:'Gelir',k:2,ac:A(t)}));
+ S.isrc.forEach(x=>{const a=iv(M,x.id);if(a>0)rows.push({d:+x.day||1,n:shortIncName(x.name),a,t:'Gelir',k:2,ac:A(x)})});
+ S.tx.filter(t=>t.type==='in'&&mkd(t.date)===M).forEach(t=>rows.push({d:+t.date.slice(8),n:shortIncName(t.cat),a:t.amt,t:'Gelir',k:2,ac:A(t)}));
  return rows}
 const flowA=(id,k)=>sum(cashRows(k).filter(r=>r.ac===id&&r.k>0).map(r=>r.k===2?r.a:-r.a));
 const bmK=a=>ymk(a.bm||today.slice(0,7));
 const balEnd=(a,M)=>{const s0=bmK(a);if(M<s0-1)return 0;let b=a.bal||0;for(let k=s0;k<=M;k++)b+=flowA(a.id,k);return b};
 const startBal=M=>sum(S.accts.map(a=>bmK(a)<=M?balEnd(a,M-1):0));
+
 function vOde(){const M=S.m,c=calc(M),rows=cashRows(M);
  rows.sort((a,b)=>(a.d||1)-(b.d||1)||(b.k===2)-(a.k===2));
  const hasB=S.accts.some(a=>a.bal),sb=hasB?startBal(M):0;let bal=sb,minB=sb,first=null;rows.forEach(r=>{if(r.k===2)bal+=r.a;else if(r.k===1){bal-=r.a;if(bal<0&&!first)first=r;if(bal<minB)minB=bal}r.b=r.k===0?null:bal});
@@ -230,10 +347,27 @@ function vOde(){const M=S.m,c=calc(M),rows=cashRows(M);
  if(net<0)w.push(`Bu ay gelirler ödemeleri karşılamıyor, fark yaklaşık ${TL(-net)}.${hasB?(sb+net>=0?' Hesaplarındaki bakiye bu farkı karşılıyor.':' Hesaplarındaki bakiye de bu farkı karşılamıyor.'):''}`);
  else if(first)w.push(`Ay toplamında gelir yetiyor ama ${first.d>=99?'ay içinde':(first.d||1)+' '+MN[M%12]+' civarında'} o güne kadar gelen gelir ödemelere yetmiyor (en düşük bakiye ${TL(minB)}). ${hasB?'Ay başı bakiyen '+TL(sb)+' olarak hesaba katıldı.':'Ay başı bakiyesi 0 varsayıldı.'} Hesabında bu tutar yoksa ödeme ya da maaş günlerine bir bak.`);
  return `<div class=sec>${mpick()}<h2>${ml(M)} nakit akışı</h2>${notesHtml(w)}
- <p class=mut>Gelirler ve hesaptan çıkan paralar gün sırasıyla. Kira, aidat, kredi, kesilmiş ekstre ve nakit harcamalar kesin sayılır. Ekstresi girilmemiş kartların tahmini tutarı silik görünür ve toplama girmez. Gelir günlerini Gelirler sekmesinde belirlersin.</p>
- ${rows.length?`<div class=wrap><table><thead><tr><th>Gün</th><th style="text-align:left">Kalem</th><th style="text-align:left">Tür</th><th>Tutar</th><th>Bakiye</th></tr></thead><tbody>
- ${hasB?`<tr class=mut><td></td><td style="text-align:left">Ay başı bakiye</td><td></td><td></td><td>${TL(sb)}</td></tr>`:''}${rows.map(r=>`<tr class="${r.k===0?'mut':''}"><td style="white-space:nowrap;">${r.d&&r.d<99?r.d+' '+MN[M%12]:'-'}</td><td style="text-align:left">${esc(r.n)}</td><td style="text-align:left">${r.t}</td><td style="white-space:nowrap;">${r.k===2?'<b class=pos>+'+TL(r.a)+'</b>':(r.k?'<b>−'+TL(r.a)+'</b>':'~'+TL(r.a))}</td><td class="${r.b<0?'neg':'mut'}" style="white-space:nowrap;">${r.b===null?'':TL(r.b)}</td></tr>`).join('')}</tbody>
- <tfoot><tr><td></td><td style="text-align:left">Gelir</td><td></td><td>${TL(gel)}</td><td></td></tr><tr><td></td><td style="text-align:left">Kesin ödemeler</td><td></td><td>${TL(kes)}</td><td></td></tr><tr><td></td><td style="text-align:left">Net</td><td></td><td class="${net<0?'neg':'pos'}">${TL(net)}</td><td></td></tr></tfoot></table></div>
+ <p class=mut>Gelirler ve hesaptan çıkan paralar gün sırasıyla. Kira, aidat, kredi, kesilmiş ekstre ve nakit harcamalar kesin sayılır.</p>
+ ${rows.length?`<div class=wrap><table style="font-size:12px;"><thead><tr>
+  <th style="text-align:left;padding:8px 6px;">Kalem</th>
+  <th style="text-align:left;padding:8px 4px;width:54px;">Tür</th>
+  <th style="padding:8px 6px;">Tutar</th>
+  <th style="padding:8px 6px;">Bakiye</th>
+  <th style="text-align:right;padding:8px 6px;white-space:nowrap;">Tarih</th>
+ </tr></thead><tbody>
+ ${hasB?`<tr class=mut><td style="text-align:left;padding:8px 6px;">Ay başı bakiye</td><td></td><td></td><td style="padding:8px 6px;white-space:nowrap;">${TL(sb)}</td><td></td></tr>`:''}
+ ${rows.map(r=>`<tr class="${r.k===0?'mut':''}">
+  <td style="text-align:left;padding:8px 6px;">${esc(r.n)}</td>
+  <td style="text-align:left;padding:8px 4px;font-size:11px;color:var(--mut);white-space:nowrap;">${r.t}</td>
+  <td style="padding:8px 6px;white-space:nowrap;">${r.k===2?'<b class=pos>+'+TL(r.a)+'</b>':(r.k?'<b>−'+TL(r.a)+'</b>':'~'+TL(r.a))}</td>
+  <td class="${r.b<0?'neg':'mut'}" style="padding:8px 6px;white-space:nowrap;">${r.b===null?'':TL(r.b)}</td>
+  <td style="text-align:right;padding:8px 6px;white-space:nowrap;font-size:11px;color:var(--mut);">${r.d&&r.d<99?r.d+' '+MN[M%12].slice(0,3):'-'}</td>
+ </tr>`).join('')}</tbody>
+ <tfoot>
+  <tr><td style="text-align:left;padding:8px 6px;">Gelir</td><td></td><td style="padding:8px 6px;">${TL(gel)}</td><td></td><td></td></tr>
+  <tr><td style="text-align:left;padding:8px 6px;">Kesin ödemeler</td><td></td><td style="padding:8px 6px;">${TL(kes)}</td><td></td><td></td></tr>
+  <tr><td style="text-align:left;padding:8px 6px;">Net</td><td></td><td class="${net<0?'neg':'pos'}" style="padding:8px 6px;">${TL(net)}</td><td></td><td></td></tr>
+ </tfoot></table></div>
  <p class=mut>${tah>0.5?`Kart tahminleri toplama dahil değil: ~${TL(tah)}. Tahminle birlikte net: ${TL(net-tah)}.`:'Tüm rakamlar kesinleşmiş.'}</p>`:'<p class=mut>Bu ay için kayıt yok.</p>'}</div>`}
 
 function vEkle(){const inc=F.type==='in';
@@ -284,13 +418,15 @@ const dTL=d=>(!d.tur||d.tur==='TL')?(d.miktar!==undefined?d.miktar:(d.balance||0
 const loanN=d=>d.end?Math.max(0,ymk(d.end)-nowM()+1):0;
 function lsetLeft(i,v){const n=Math.max(0,parseInt(v)||0);S.debts[i].end=n?ikey(nowM()+n-1):'';save();render()}
 
-function lst(k,ym){return `${S[k].map((f,i)=>`
+// Zam butonu kaldırıldı; aylık sabit giderlerde tutar elle değişince bu aydan itibaren ileriye uygulanır
+function lst(k,ym){
+ const items=S[k].map((f,i)=>({f,i})).filter(x=>ym ? true : on(x.f,S.m));
+ return `${items.map(({f,i})=>`
  <div class=cardbox style="padding:14px; margin-bottom:12px;">
   <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
-   <input style="flex:2; min-width:120px; font-weight:700;" value="${esc(f.name)}" placeholder="Gider Adı" onchange="U('${k}',${i},'name',this.value)">
-   <input style="flex:1; min-width:95px; max-width:130px; font-weight:700;" type=number step=any placeholder="Tutar (₺)" value="${k==='yearly'?yA(f,YY()):f.amt}" onchange="${k==='yearly'?`yset(${i},this.value)`:`U('${k}',${i},'amt',this.value)`}">
-   ${k==='fixed'?`<button class=b style="padding:8px 12px; font-size:13px;" onclick="zam(${i})">Zam</button>`:''}
-   <button class=b style="padding:8px 12px; font-size:13px; color:var(--neg);" onclick="del('${k}',${i})" title="Sil"><i class="fa fa-trash"></i></button>
+   <input style="flex:2; min-width:110px; font-weight:700;" value="${esc(f.name)}" placeholder="Gider Adı" onchange="U('${k}',${i},'name',this.value)">
+   <input style="width:105px; font-weight:700;" type=number step=any placeholder="Tutar (₺)" value="${k==='yearly'?yA(f,YY()):f.amt}" onchange="${k==='yearly'?`yset(${i},this.value)`:`updateFixedAmt(${i},this.value)`}">
+   <button class=b style="padding:8px 10px; font-size:13px; color:var(--neg); flex-shrink:0;" onclick="del('${k}',${i})" title="Sil"><i class="fa fa-trash"></i></button>
   </div>
   <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
    <select style="flex:1; min-width:115px; font-size:13px; padding:8px 10px;" title="Kategori" onchange="U('${k}',${i},'cat',this.value)">${optI(CL(),f.cat)}</select>
@@ -301,13 +437,14 @@ function lst(k,ym){return `${S[k].map((f,i)=>`
     <select style="flex:1; min-width:115px; font-size:13px; padding:8px 10px;" title="Ödeme Aracı" onchange="U('yearly',${i},'pm',this.value)"><option value=cash>Nakit</option>${S.cards.map(c=>`<option value="${c.id}"${f.pm===c.id?' selected':''}>${esc(c.name)}</option>`).join('')}</select>
     <input type=number min=1 title="Taksit sayısı" placeholder="Taksit" style="width:76px; font-size:13px; padding:8px 10px;" value="${f.inst||''}" onchange="U('yearly',${i},'inst',this.value)">
    `:`
-    <input type=number min=1 max=31 title="Ayın kaçında ödeniyor" placeholder="Ödeme Günü" style="width:110px; font-size:13px; padding:8px 10px;" value="${f.day||''}" onchange="U('fixed',${i},'day',this.value)">
+    <input type=number min=1 max=31 title="Ayın kaçında ödeniyor" placeholder="Gün" style="width:76px; font-size:13px; padding:8px 10px;" value="${f.day||''}" onchange="U('fixed',${i},'day',this.value)">
    `}
    ${acSel(k,i,f.acct)}
   </div>
   ${k==='fixed'?`<details style="margin-top:8px;"><summary class=mut style="cursor:pointer;font-size:12px;">Başlangıç ve bitiş ayı${f.from||f.to?' · '+(f.from||'…')+' → '+(f.to||'süresiz'):''}</summary><div class=row style="margin-top:6px"><label style="font-size:12px;">Başlangıç</label><input type=month style="width:140px;font-size:12px;padding:6px;" value="${f.from||''}" onchange="U('fixed',${i},'from',this.value,1)"><label style="font-size:12px;">Bitiş (boşsa süresiz)</label><input type=month style="width:140px;font-size:12px;padding:6px;" min="${f.from||''}" value="${f.to||''}" onchange="U('fixed',${i},'to',this.value,1)"></div></details>`:''}
  </div>`).join('')}
- <button class=b onclick="S.${k}.push({name:'',amt:0,cat:dcat('${ym?'vergi':'konut'}'),who:'aile'${ym?',month:1':''}});save();render()">Ekle</button>`}
+ <button class=b onclick="S.${k}.push({name:'',amt:0,cat:dcat('${ym?'vergi':'konut'}'),who:'aile'${ym?',month:1':`,from:ikey(S.m)`}});save();render()">Ekle</button>`;
+}
 
 const useN=(f,id)=>['tx','fixed','yearly'].reduce((a,k)=>a+S[k].filter(t=>t[f]===id).length,0);
 function rn(l,i,v){v=String(v).trim();if(!v){render();return}if(S[l].some((x,j)=>j!==i&&x.name.toLowerCase()===v.toLowerCase())){render();stat('Bu ad zaten var');return}S[l][i].name=v;save();render()}
@@ -364,7 +501,7 @@ function vAyar(){return `<div class=sec><h2>Kişiler</h2><p class=mut>Harcamanı
  ${depoSec()}
  ${yedekSec()}`}
 
-function vSabit(){return `<div class=sec><h2>Her ay tekrarlayan giderler</h2><p class=mut>Kira, aidat, kurs gibi. Her ay otomatik gelir, tekrar girmezsin. Ayın kaçında ödendiğini Gün kutusuna yaz, Ödemeler sekmesinde o güne göre sıralanır. Zam gelince Zam düğmesine bas: satır kopyalanır, eskisi bu ay biter, yenisi gelecek aydan başlar, sonra yeni tutarı düzeltirsin. Başlangıç ve bitiş ayını satırın altındaki ayrıntıdan değiştirebilirsin.</p>${lst('fixed')}</div>
+function vSabit(){return `<div class=sec>${mpick()}<h2>Her ay tekrarlayan giderler (${ml(S.m)})</h2><p class=mut>Kira, aidat, kurs gibi. Her ay otomatik gelir. Seçili ayda tutarı güncellediğinde önceki aylar korunur, sonraki aylarda otomatik yeni tutar geçerli olur.</p>${lst('fixed')}</div>
  <div class=sec><h2>Yılda bir gelen giderler</h2><p class=mut>MTV, DASK, emlak vergisi, gelir vergisi gibi. Seçtiğin ay ve günde ödenir, her yıl kendiliğinden gelir. Kartla ve taksitle ödersen ekstreye ve sonraki aylara da yansır, bu yüzden Ekle sekmesine ayrıca girme. Tutar değişince buradan güncelle. Özet’te aylık karşılığı hesaplanır.</p><div class=row><button class=b onclick="S.yy=YY()-1;save();render()">‹</button><b>${YY()}</b><button class=b onclick="S.yy=YY()+1;save();render()">›</button><span class=mut>Tutarlar bu yıl için gösterilir ve girilir. Başka bir yıla geçip tutarı değiştirirsen önceki yıllar olduğu gibi kalır.</span></div>
  ${lst('yearly',1)}</div>`}
 
@@ -463,12 +600,15 @@ function vGelir(){
  </div>
  <div class=wrap><table class=sm><thead><tr><th>Ay</th>${src.map(x=>`<th>${esc(x.name)}</th>`).join('')}<th>Toplam</th></tr></thead><tbody>${rows.join('')}</tbody></table></div>
  </div>
- <div class=sec><h2>Gelir kalemleri ve kuralları</h2><p class=mut>"Her ay devam etsin" işaretliyse boş bıraktığın aylarda önceki ayın tutarı geçerli olur. İşaretli değilse (ikramiye, ek ders, mesai gibi) sadece yazdığın ayda sayılır.</p>
+ <div class=sec><h2>Gelir kalemleri ve kuralları</h2><p class=mut>"Her ay devam etsin" seçiliyse boş bıraktığın aylarda önceki ayın tutarı geçerli olur. Seçili değilse (ikramiye, ek ders, mesai gibi) sadece yazdığın ayda sayılır.</p>
  ${src.map((x,i)=>`<div class=row>
-  <input style="flex:2;min-width:150px" value="${esc(x.name)}" onchange="U('isrc',${i},'name',this.value,1)">
-  <input type=number min=1 max=31 placeholder="Gün" title="Ayın kaçında yatıyor" style="width:75px" value="${x.day||''}" onchange="U('isrc',${i},'day',this.value)">
+  <input style="flex:2;min-width:140px" value="${esc(x.name)}" onchange="U('isrc',${i},'name',this.value,1)">
+  <input type=number min=1 max=31 placeholder="Gün" title="Ayın kaçında yatıyor" style="width:72px" value="${x.day||''}" onchange="U('isrc',${i},'day',this.value)">
   ${acSel('isrc',i,x.acct)}
-  <label style="display:flex;gap:6px;align-items:center;color:var(--ink);font-size:13px;cursor:pointer;"><input type=checkbox style="width:auto" ${x.ff?'checked':''} onchange="S.isrc[${i}].ff=this.checked?1:0;save();render()">Her ay devam etsin</label>
+  <button type="button" class="chk-pill${x.ff?' on':''}" onclick="S.isrc[${i}].ff=S.isrc[${i}].ff?0:1;save();render()">
+   <span class="chk-box">${x.ff?'✓':''}</span>
+   <span>Her ay devam etsin</span>
+  </button>
   <button class=b onclick="del('isrc',${i})">Sil</button>
  </div>`).join('')}
  <button class=b onclick="S.isrc.push({id:'g'+Date.now(),name:'Yeni gelir',ff:0,day:1});save();render()">Gelir kalemi ekle</button>
