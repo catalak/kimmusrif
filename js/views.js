@@ -192,13 +192,35 @@ function vOzet(){
  const tf=window.txFilter;
  const q=tf.q.trim().toLocaleLowerCase('tr');
 
- let whoDrillHtml='';
+ // Kişi Profili Görünümü (Çubuğa tıklayınca açılır)
+ let whoProfileHtml='';
  if(window.ozetWhoDrill){
-  const wItems=c.items.filter(i=>i.who===window.ozetWhoDrill);
-  whoDrillHtml=`<div style="margin-top:12px; padding:14px 16px; background:#F8FAFC; border:1px solid var(--acc); border-radius:14px;">
-   <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-    <b style="font-size:14px; color:var(--ink);">${esc(wn(window.ozetWhoDrill))} — ${ml(M)} Harcamaları (${wItems.length} kalem · ${TL(sum(wItems.map(x=>x.a)))})</b>
-    <button class=b style="padding:4px 10px; font-size:12px;" onclick="window.ozetWhoDrill=null;render()">Kapat ✕</button>
+  const wId=window.ozetWhoDrill;
+  const wName=wn(wId);
+  const wItems=c.items.filter(i=>i.who===wId);
+  const wTot=sum(wItems.map(x=>x.a));
+  const indivTot=sum(c.items.filter(i=>i.who&&i.who!=='aile').map(x=>x.a));
+  const wPct=indivTot>0?Math.round((wTot/indivTot)*100):0;
+
+  const catMap={};
+  wItems.forEach(i=>{catMap[i.cat]=(catMap[i.cat]||0)+i.a;});
+  const topCat=Object.entries(catMap).sort((a,b)=>b[1]-a[1])[0];
+
+  whoProfileHtml=`<div style="margin-top:14px; padding:16px; background:#FFFFFF; border:2px solid var(--acc); border-radius:18px; box-shadow:0 8px 24px rgba(59,130,246,0.12);">
+   <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+    <div style="display:flex; align-items:center; gap:12px;">
+     <div style="width:42px; height:42px; border-radius:21px; background:var(--acc); color:#FFF; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:18px;">${esc(wName.charAt(0).toUpperCase())}</div>
+     <div>
+      <div style="font-weight:800; font-size:16px; color:var(--ink);">${esc(wName)} Profili</div>
+      <div class=mut style="font-size:12px;">${ml(M)} Bireysel Harcama Özeti</div>
+     </div>
+    </div>
+    <button class=b style="padding:6px 12px; font-size:12px; border-radius:10px;" onclick="window.ozetWhoDrill=null;render()">Kapat ✕</button>
+   </div>
+   <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px; background:#F8FAFC; padding:10px; border-radius:12px; margin-bottom:12px; text-align:center;">
+    <div><div class=mut style="font-size:11px;">Toplam</div><b style="font-size:14px; color:var(--ink);">${TL(wTot)}</b></div>
+    <div><div class=mut style="font-size:11px;">Bireysel Pay</div><b style="font-size:14px; color:var(--acc);">%${wPct}</b></div>
+    <div><div class=mut style="font-size:11px;">Favori Kalem</div><b style="font-size:13px; color:var(--ink);">${topCat?esc(cn(topCat[0])):'-'}</b></div>
    </div>
    ${wItems.length?`<div style="overflow-x:auto;"><table style="width:100%; font-size:13px; border-collapse:collapse;"><tbody>${renderItemRows(wItems,M)}</tbody></table></div>`:'<p class=mut style="margin:0;">Bu ay için kayıt yok.</p>'}
   </div>`;
@@ -228,11 +250,11 @@ function vOzet(){
  return `<div class=sec>${mpick()}
  <div style="max-width:100%; margin-bottom: 25px; display: ${c.spend > 0 ? 'block' : 'none'}">
   <h3 style="text-align:center; color:var(--ink); margin-top:10px; margin-bottom:4px; font-size:16px;">Kimin Harcaması Daha Çok?</h3>
-  <p class=mut style="text-align:center; font-size:12px; margin:0 0 10px 0;">Detayları görmek için kişinin çubuğuna dokun</p>
+  <p class=mut style="text-align:center; font-size:12px; margin:0 0 10px 0;">Profilini ve harcamalarını açmak için kişinin üzerine dokun</p>
   <div style="position: relative; height: 180px;">
     <canvas id="kisiGrafigi"></canvas>
   </div>
-  ${whoDrillHtml}
+  ${whoProfileHtml}
  </div>
  <div class=stats><div><span>Gelir</span><b>${TL(c.inc)}</b></div><div><span>Ödemeler (kesinleşen)</span><b>${TL(c.cash)}</b></div>
  <div><span>Kalan</span><b class="${net<0?'neg':'pos'}">${TL(net)}</b></div></div>
@@ -266,7 +288,6 @@ function vOzet(){
 function vHarc(){
  const M=S.m,c=calc(M),it=c.items,tsp=c.spend,pc=a=>tsp?'%'+Math.round(a/tsp*100):'-';
  const tot=k=>sum(it.filter(i=>i.cat===k).map(i=>i.a));
- // Grafikteki renk sırasıyla birebir eşleşmesi için tutara göre büyükten küçüğe sırala
  const cats=CL().filter(k=>it.some(i=>i.cat===k.id)).sort((a,b)=>tot(b.id)-tot(a.id));
  const who=w=>sum(it.filter(i=>i.who===w).map(i=>i.a));
  const dr=window.harcDrill;
@@ -313,7 +334,6 @@ const aName=id=>{const a=S.accts.find(x=>x.id===id);return a?a.name:''};
 const resAcct=w=>{const p=PL().find(x=>x.id===w);return p&&p.acct&&S.accts.some(a=>a.id===p.acct)?p.acct:S.defAcct};
 const acSel=(k,i,v)=>S.accts.length>1?`<select title="Hesap" style="flex:1;min-width:115px" onchange="U('${k}',${i},'acct',this.value)">${optI(S.accts,A({acct:v}))}</select>`:'';
 
-// "Seçkin maaşı" / "Zeynep maaş" gibi gelir kalemlerini kişi adına kısaltır
 function shortIncName(nm){
  const s=String(nm||'').trim();
  if(/maaş/i.test(s)){
@@ -321,6 +341,17 @@ function shortIncName(nm){
   if(first) return first;
  }
  return s;
+}
+
+// İlk kelimeyi üstte kalın, kalanını alt satırda küçük yazar (Örn: "Garanti" üstte, "Bonus ekstresi" altta)
+function formatKalemTwoLine(raw){
+ const s=String(raw||'').trim();
+ if(!s) return '';
+ const parts=s.split(/\s+/);
+ const first=parts[0];
+ const rest=parts.slice(1).join(' ').replace(/^[-–—]\s*/,'');
+ if(!rest) return `<b>${esc(first)}</b>`;
+ return `<div style="line-height:1.25;"><b style="font-size:12px;color:var(--ink);">${esc(first)}</b><div class=mut style="font-size:10px;">${esc(rest)}</div></div>`;
 }
 
 function cashRows(M){const rows=[],Y=Math.floor(M/12);
@@ -350,14 +381,14 @@ function vOde(){const M=S.m,c=calc(M),rows=cashRows(M);
  <p class=mut>Gelirler ve hesaptan çıkan paralar gün sırasıyla. Kira, aidat, kredi, kesilmiş ekstre ve nakit harcamalar kesin sayılır.</p>
  ${rows.length?`<div class=wrap><table style="font-size:12px;"><thead><tr>
   <th style="text-align:left;padding:8px 6px;">Kalem</th>
-  <th style="text-align:left;padding:8px 4px;width:54px;">Tür</th>
+  <th style="text-align:left;padding:8px 4px;width:48px;">Tür</th>
   <th style="padding:8px 6px;">Tutar</th>
   <th style="padding:8px 6px;">Bakiye</th>
   <th style="text-align:right;padding:8px 6px;white-space:nowrap;">Tarih</th>
  </tr></thead><tbody>
  ${hasB?`<tr class=mut><td style="text-align:left;padding:8px 6px;">Ay başı bakiye</td><td></td><td></td><td style="padding:8px 6px;white-space:nowrap;">${TL(sb)}</td><td></td></tr>`:''}
  ${rows.map(r=>`<tr class="${r.k===0?'mut':''}">
-  <td style="text-align:left;padding:8px 6px;">${esc(r.n)}</td>
+  <td style="text-align:left;padding:8px 6px;">${formatKalemTwoLine(r.n)}</td>
   <td style="text-align:left;padding:8px 4px;font-size:11px;color:var(--mut);white-space:nowrap;">${r.t}</td>
   <td style="padding:8px 6px;white-space:nowrap;">${r.k===2?'<b class=pos>+'+TL(r.a)+'</b>':(r.k?'<b>−'+TL(r.a)+'</b>':'~'+TL(r.a))}</td>
   <td class="${r.b<0?'neg':'mut'}" style="padding:8px 6px;white-space:nowrap;">${r.b===null?'':TL(r.b)}</td>
@@ -365,7 +396,7 @@ function vOde(){const M=S.m,c=calc(M),rows=cashRows(M);
  </tr>`).join('')}</tbody>
  <tfoot>
   <tr><td style="text-align:left;padding:8px 6px;">Gelir</td><td></td><td style="padding:8px 6px;">${TL(gel)}</td><td></td><td></td></tr>
-  <tr><td style="text-align:left;padding:8px 6px;">Kesin ödemeler</td><td></td><td style="padding:8px 6px;">${TL(kes)}</td><td></td><td></td></tr>
+  <tr><td style="text-align:left;padding:8px 6px;">Ödemeler</td><td></td><td style="padding:8px 6px;">${TL(kes)}</td><td></td><td></td></tr>
   <tr><td style="text-align:left;padding:8px 6px;">Net</td><td></td><td class="${net<0?'neg':'pos'}" style="padding:8px 6px;">${TL(net)}</td><td></td><td></td></tr>
  </tfoot></table></div>
  <p class=mut>${tah>0.5?`Kart tahminleri toplama dahil değil: ~${TL(tah)}. Tahminle birlikte net: ${TL(net-tah)}.`:'Tüm rakamlar kesinleşmiş.'}</p>`:'<p class=mut>Bu ay için kayıt yok.</p>'}</div>`}
@@ -418,7 +449,6 @@ const dTL=d=>(!d.tur||d.tur==='TL')?(d.miktar!==undefined?d.miktar:(d.balance||0
 const loanN=d=>d.end?Math.max(0,ymk(d.end)-nowM()+1):0;
 function lsetLeft(i,v){const n=Math.max(0,parseInt(v)||0);S.debts[i].end=n?ikey(nowM()+n-1):'';save();render()}
 
-// Zam butonu kaldırıldı; aylık sabit giderlerde tutar elle değişince bu aydan itibaren ileriye uygulanır
 function lst(k,ym){
  const items=S[k].map((f,i)=>({f,i})).filter(x=>ym ? true : on(x.f,S.m));
  return `${items.map(({f,i})=>`

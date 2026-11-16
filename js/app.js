@@ -364,6 +364,18 @@ window.cizGrafikler = function(deneme = 0) {
                     responsive: true, 
                     maintainAspectRatio: false, 
                     animation: false,
+                    onHover: (event, chartElement) => {
+                        event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
+                    },
+                    onClick: (event, elements) => {
+                        if (elements.length > 0) {
+                            const idx = elements[0].index;
+                            const clickedWhoId = sortedWho[idx][0];
+                            if (typeof window.toggleOzetWhoDrill === 'function') {
+                                window.toggleOzetWhoDrill(clickedWhoId);
+                            }
+                        }
+                    },
                     layout: {
                         padding: { right: 115 }
                     },
