@@ -92,7 +92,12 @@
  document.head.appendChild(st);
 })();
 
-const CHART_COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#14B8A6', '#64748B'];
+const CHART_COLORS = [
+ '#3B82F6', '#10B981', '#F59E0B', '#EF4444',
+ '#8B5CF6', '#EC4899', '#14B8A6', '#F97316',
+ '#6366F1', '#84CC16', '#06B6D4', '#E11D48',
+ '#A855F7', '#0D9488', '#D97706', '#475569'
+];
 
 window.txFilter = window.txFilter || { q: '', key: 'date', dir: -1, open: false };
 window.harcDrill = window.harcDrill || null;
@@ -175,14 +180,11 @@ const notesHtml=a=>a.length?`<div class=notes>${a.map(t=>`<p>${esc(t)}</p>`).joi
 function renderItemRows(items, M){
  return items.map(m=>{
   const dtStr = m.date ? (m.date.slice(8)+'.'+m.date.slice(5,7)) : ml(M);
-  const payStr = m.pay ? pn(m.pay) : 'Sabit / Yıllık';
-  const instStr = (m.inst && m.inst > 1) ? ` (${m.inst} taksit)` : '';
+  const instStr = (m.inst && m.inst > 1) ? ` · ${m.inst} taksit` : '';
   return `<tr style="border-bottom:1px solid var(--line);">
-   <td style="padding:8px 4px; white-space:nowrap;">${dtStr}</td>
-   <td style="padding:8px 4px;"><b>${esc(cn(m.cat))}</b>${m.note ? ' · ' + esc(m.note) : ''}</td>
-   <td class=mut style="padding:8px 4px; font-size:12px;">${esc(wn(m.who))}</td>
-   <td class=mut style="padding:8px 4px; font-size:12px;">${esc(payStr)}${instStr}</td>
-   <td style="padding:8px 4px; text-align:right; font-weight:700; white-space:nowrap;">${TL(m.a)}</td>
+   <td style="padding:8px 4px;"><b>${esc(cn(m.cat))}</b>${m.note ? ' · ' + esc(m.note) : ''}${instStr ? `<span class=mut style="font-size:11px;">${instStr}</span>` : ''}</td>
+   <td style="padding:8px 6px; text-align:right; font-weight:700; white-space:nowrap;">${TL(m.a)}</td>
+   <td class=mut style="padding:8px 4px; text-align:right; white-space:nowrap; font-size:12px;">${dtStr}</td>
   </tr>`;
  }).join('');
 }
@@ -294,8 +296,8 @@ function vHarc(){
 
  let drillHtml='';
  if(dr){
-  const matched=it.filter(i=>(dr.cat==='ALL'||i.cat===dr.cat)&&(dr.who==='ALL'||i.who===dr.who));
-  const titleParts=[dr.cat==='ALL'?'Tüm Kategoriler':cn(dr.cat), dr.who==='ALL'?'Tüm Aile':wn(dr.who)];
+  const matched=it.filter(i=>(dr.cat==='__TOT__'||i.cat===dr.cat)&&(dr.who==='__TOT__'||i.who===dr.who));
+  const titleParts=[dr.cat==='__TOT__'?'Tüm Kategoriler':cn(dr.cat), dr.who==='__TOT__'?'Tüm Aile':wn(dr.who)];
   drillHtml=`<div style="margin-top:16px; padding:14px 16px; background:#F8FAFC; border:1px solid var(--acc); border-radius:14px;">
    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
     <b style="font-size:14px; color:var(--ink);">${esc(titleParts.join(' · '))} (${matched.length} kalem · ${TL(sum(matched.map(x=>x.a)))})</b>
@@ -320,16 +322,16 @@ function vHarc(){
   const clr=CHART_COLORS[idx%CHART_COLORS.length];
   return `<tr>
    <td style="text-align:center;padding:8px 4px;" title="${esc(k.name)}"><span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:${clr};vertical-align:middle;box-shadow:0 1px 3px rgba(0,0,0,0.15);"></span></td>
-   <td class="mx-cell${isSel(k.id,'ALL')}" onclick="toggleHarcDrill('${esc(k.id)}','ALL')"><b>${TL(tot(k.id))}</b></td>
+   <td class="mx-cell${isSel(k.id,'__TOT__')}" onclick="toggleHarcDrill('${esc(k.id)}','__TOT__')"><b>${TL(tot(k.id))}</b></td>
    <td class=mut style="padding:8px 4px;white-space:nowrap;">${pc(tot(k.id))}</td>
    ${PL().map(p=>{const a=sum(it.filter(i=>i.cat===k.id&&i.who===p.id).map(i=>i.a));return a?`<td class="mx-cell${isSel(k.id,p.id)}" onclick="toggleHarcDrill('${esc(k.id)}','${esc(p.id)}')">${TL(a)}</td>`:`<td style="padding:8px 6px;"><span class=mut>-</span></td>`}).join('')}
   </tr>`;
  }).join('')}</tbody>
  <tfoot><tr>
   <td style="text-align:center;padding:8px 4px;">Top.</td>
-  <td class="mx-cell${isSel('ALL','ALL')}" onclick="toggleHarcDrill('ALL','ALL')"><b>${TL(tsp)}</b></td>
+  <td class="mx-cell${isSel('__TOT__','__TOT__')}" onclick="toggleHarcDrill('__TOT__','__TOT__')"><b>${TL(tsp)}</b></td>
   <td style="padding:8px 4px;">${tsp?'%100':''}</td>
-  ${PL().map(p=>{const a=who(p.id);return a?`<td class="mx-cell${isSel('ALL',p.id)}" onclick="toggleHarcDrill('ALL','${esc(p.id)}')">${TL(a)}</td>`:`<td style="padding:8px 6px;">${TL(0)}</td>`}).join('')}
+  ${PL().map(p=>{const a=who(p.id);return a?`<td class="mx-cell${isSel('__TOT__',p.id)}" onclick="toggleHarcDrill('__TOT__','${esc(p.id)}')">${TL(a)}</td>`:`<td style="padding:8px 6px;">${TL(0)}</td>`}).join('')}
  </tr>
  <tr class=mut>
   <td style="text-align:center;padding:6px 4px;">Pay</td>

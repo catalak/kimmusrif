@@ -225,7 +225,12 @@ window.cizGrafikler = function(deneme = 0) {
         window.chartHarcama = null;
         
         const it = c.items;
-        const PALETTE = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#14B8A6', '#64748B'];
+        const PALETTE = [
+            '#3B82F6', '#10B981', '#F59E0B', '#EF4444',
+            '#8B5CF6', '#EC4899', '#14B8A6', '#F97316',
+            '#6366F1', '#84CC16', '#06B6D4', '#E11D48',
+            '#A855F7', '#0D9488', '#D97706', '#475569'
+        ];
         const cats = CL().filter(k => it.some(i => i.cat === k.id))
             .map(k => ({ name: k.name, val: sum(it.filter(i => i.cat === k.id).map(i => i.a)) }))
             .sort((a, b) => b.val - a.val);

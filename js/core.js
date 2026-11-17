@@ -1,4 +1,3 @@
-
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const TL=n=>new Intl.NumberFormat('tr-TR',{maximumFractionDigits:0}).format(Math.round(n||0))+' ₺';
@@ -154,9 +153,9 @@ function vGelir(){const s=nowM()+(S.io||0),rows=[],src=S.isrc||[];
  ${src.map((x,i)=>`<div class=row><input style="flex:2;min-width:160px" value="${esc(x.name)}" onchange="U('isrc',${i},'name',this.value,1)"><input type=number min=1 max=31 placeholder="Ayın kaçı" title="Ayın kaçında yatıyor" style="width:110px" value="${x.day||''}" onchange="U('isrc',${i},'day',this.value)">${acSel('isrc',i,x.acct)}<label style="display:flex;gap:6px;align-items:center;color:var(--ink);font-size:14px"><input type=checkbox style="width:auto" ${x.ff?'checked':''} onchange="S.isrc[${i}].ff=this.checked?1:0;save();render()">Her ay devam etsin</label><button class=b onclick="del('isrc',${i})">Sil</button></div>`).join('')}
  <button class=b onclick="S.isrc.push({id:'g'+Date.now(),name:'Yeni gelir',ff:0});save();render()">Gelir kalemi ekle</button></div>`}
 function calc(M){
- const ex=S.tx.filter(t=>t.type!=='in'),yr=S.yearly.filter(y=>y.month-1===M%12).map(y=>({...y,amt:yA(y,Math.floor(M/12))})),fx=S.fixed.filter(f=>on(f,M)),ln=S.debts.filter(d=>d.kind==='kredi'&&loanOn(d,M));
+ const ex=S.tx.filter(t=>t.type!=='in'),yr=S.yearly.filter(y=>y.month-1===M%12).map(y=>({...y,amt:yA(y,Math.floor(M/12)),note:y.name})),fx=S.fixed.filter(f=>on(f,M)).map(f=>({...f,note:f.name})),ln=S.debts.filter(d=>d.kind==='kredi'&&loanOn(d,M));
  const inc=incM(M)+sum(S.tx.filter(t=>t.type==='in'&&inPer(t.date, M)).map(t=>t.amt));
- const items=[...ex.filter(t=>inPer(t.date, M)),...fx,...yr,...ln.map(d=>({cat:'borc',who:'aile',amt:d.pay}))].map(t=>({cat:t.cat,who:t.who,a:t.amt}));
+ const items=[...ex.filter(t=>inPer(t.date, M)),...fx,...yr,...ln.map(d=>({cat:'borc',who:'aile',amt:d.pay,note:d.name}))].map(t=>({cat:t.cat,who:t.who,a:t.amt,date:t.date||'',note:t.note||'',inst:t.inst||1}));
  const cash=sum(ex.filter(t=>t.pay==='cash'&&inPer(t.date, M)).map(t=>t.amt))+sum(fx.map(f=>f.amt))+sum(ln.map(d=>d.pay))+sum(yr.filter(f=>!f.pm||f.pm==='cash').map(f=>f.amt))+sum(S.cards.map(c=>cardSure(c,M)));
  const est=sum(S.cards.map(c=>cardTah(c,M)));
  return{inc,items,spend:sum(items.map(i=>i.a)),cash,est,fixed:sum(fx.map(f=>f.amt))+sum(ln.map(d=>d.pay))}}
@@ -183,6 +182,7 @@ function add(){const am=parseFloat(String($('#am').value).replace(',','.'));if(!
  const inc={};
  [M-2,M-1,M].forEach((k,idx)=>{inc[ikey(k)]={ben:68000,es:54000,bene:idx===1?12000:0}});
  const tx=[
+  // 2 Ay Önce (Eylül)
   {id:'d1',type:'out',date:dt(M-2,4),amt:6400,cat:'market',who:'aile',pay:'k1',inst:1,note:'Aylık büyük market'},
   {id:'d2',type:'out',date:dt(M-2,7),amt:4200,cat:'cocuk',who:'aile',pay:'k1',inst:2,note:'Defne okul kırtasiye & çanta'},
   {id:'d3',type:'out',date:dt(M-2,11),amt:7850,cat:'giyim',who:'p2',pay:'k2',inst:3,note:'Zeynep sonbahar gardırop'},
@@ -190,6 +190,7 @@ function add(){const am=parseFloat(String($('#am').value).replace(',','.'));if(!
   {id:'d5',type:'out',date:dt(M-2,18),amt:3100,cat:'disari',who:'p2',pay:'k2',inst:1,note:'Arkadaşlarla brunch & kahve'},
   {id:'d6',type:'out',date:dt(M-2,22),amt:2650,cat:'bakim',who:'p2',pay:'k2',inst:1,note:'Kuaför & cilt bakımı'},
   {id:'d7',type:'out',date:dt(M-2,26),amt:2900,cat:'market',who:'aile',pay:'cash',inst:1,note:'Haftalık pazar & kasap'},
+  // Geçen Ay (Ekim)
   {id:'d8',type:'out',date:dt(M-1,3),amt:6900,cat:'market',who:'aile',pay:'k1',inst:1,note:'Market alışverişi'},
   {id:'d9',type:'out',date:dt(M-1,6),amt:3400,cat:'cocuk',who:'aile',pay:'k1',inst:1,note:'Emir bez & mama + kreş'},
   {id:'d10',type:'out',date:dt(M-1,9),amt:9400,cat:'giyim',who:'p2',pay:'k2',inst:3,note:'Zeynep trençkot & bot'},
@@ -198,6 +199,7 @@ function add(){const am=parseFloat(String($('#am').value).replace(',','.'));if(!
   {id:'d13',type:'out',date:dt(M-1,20),amt:3650,cat:'disari',who:'p2',pay:'k2',inst:1,note:'Dışarda akşam yemeği & tatlı'},
   {id:'d14',type:'out',date:dt(M-1,24),amt:1850,cat:'giyim',who:'p1',pay:'k1',inst:1,note:'Kerem gömlek'},
   {id:'d15',type:'out',date:dt(M-1,27),amt:3200,cat:'bakim',who:'p2',pay:'k2',inst:1,note:'Kozmetik yenileme'},
+  // Bu Ay (Kasım)
   {id:'d16',type:'out',date:dt(M,2),amt:7100,cat:'market',who:'aile',pay:'k1',inst:1,note:'Mutfak alışverişi'},
   {id:'d17',type:'out',date:dt(M,5),amt:8600,cat:'giyim',who:'p2',pay:'k2',inst:3,note:'Zeynep çanta & triko'},
   {id:'d18',type:'out',date:dt(M,8),amt:3800,cat:'cocuk',who:'aile',pay:'k1',inst:1,note:'Defne yüzme kursu & Emir oyuncak'},
@@ -244,4 +246,3 @@ function add(){const am=parseFloat(String($('#am').value).replace(',','.'));if(!
   tx
  };
 }
-
